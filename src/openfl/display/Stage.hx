@@ -14,6 +14,7 @@ import openfl.events.EventPhase;
 import openfl.events.FocusEvent;
 import openfl.events.FullScreenEvent;
 import openfl.events.KeyboardEvent;
+import openfl.events.TextEditEvent;
 import openfl.events.MouseEvent;
 import openfl.events.StageOrientationEvent;
 import openfl.events.TextEvent;
@@ -2477,9 +2478,36 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	}
 
 	@:noCompletion private function __onLimeTextEdit(window:Window, text:String, start:Int, length:Int):Void
-	{
-		// if (this.window == null || this.window != window) return;
-	}
+    {
+        if (this.window == null || this.window != window) return;
+
+        var stack = new Array<DisplayObject>();
+
+        if (__focus == null)
+        {
+            __getInteractive(stack);
+        }
+        else
+        {
+            __focus.__getInteractive(stack);
+        }
+
+        var event = new TextEditEvent(TextEditEvent.TEXT_EDIT, true, true, text, start, length);
+        if (stack.length > 0)
+        {
+            stack.reverse();
+            __dispatchStack(event, stack);
+        }
+        else
+        {
+            __dispatchEvent(event);
+        }
+
+        if (event.isDefaultPrevented())
+        {
+            window.onTextEdit.cancel();
+        }
+    }
 
 	@:noCompletion private function __onLimeTextInput(window:Window, text:String):Void
 	{
