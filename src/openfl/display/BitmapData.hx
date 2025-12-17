@@ -198,6 +198,8 @@ class BitmapData implements IBitmapDrawable
 	**/
 	public var width(default, null):Int;
 
+	public var imageScale:Float = 1.0;
+
 	@:noCompletion private var __blendMode:BlendMode;
 	@:noCompletion private var __drawableType:IBitmapDrawableType;
 	// @:noCompletion private var __vertexBufferColorTransform:ColorTransform;
@@ -3313,6 +3315,11 @@ class BitmapData implements IBitmapDrawable
 
 			__textureWidth = width;
 			__textureHeight = height;
+
+			if (image.buffer.imageScale != 1.0)
+			{
+				imageScale = image.buffer.imageScale;
+			}
 
 			#if sys
 			image.format = BGRA32;
