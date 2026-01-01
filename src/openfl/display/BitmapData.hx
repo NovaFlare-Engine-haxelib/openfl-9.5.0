@@ -198,7 +198,7 @@ class BitmapData implements IBitmapDrawable
 	**/
 	public var width(default, null):Int;
 
-	public var imageScale:Float = 1.0;
+	public var graphicScale:Float = 1.0;
 
 	@:noCompletion private var __blendMode:BlendMode;
 	@:noCompletion private var __drawableType:IBitmapDrawableType;
@@ -3316,9 +3316,9 @@ class BitmapData implements IBitmapDrawable
 			__textureWidth = width;
 			__textureHeight = height;
 
-			if (image.buffer.imageScale != 1.0)
+			if (image.buffer.graphicScale != 1.0)
 			{
-				imageScale = image.buffer.imageScale;
+				graphicScale = image.buffer.graphicScale;
 			}
 
 			#if sys
