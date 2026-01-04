@@ -1741,7 +1741,12 @@ class BitmapData implements IBitmapDrawable
 				var centerY = scale9Grid.height;
 				if (centerX != 0 && centerY != 0)
 				{
-					__vertexBufferData = new Float32Array(VERTEX_BUFFER_STRIDE * 16);
+					var bufferSize = VERTEX_BUFFER_STRIDE * 16;
+
+					if (__vertexBufferData == null || __vertexBufferData.length < bufferSize)
+					{
+						__vertexBufferData = new Float32Array(bufferSize);
+					}
 
 					var left = scale9Grid.x;
 					var top = scale9Grid.y;
@@ -1846,7 +1851,12 @@ class BitmapData implements IBitmapDrawable
 				}
 				else if (centerX == 0 && centerY != 0)
 				{
-					__vertexBufferData = new Float32Array(VERTEX_BUFFER_STRIDE * 8);
+					var bufferSize = VERTEX_BUFFER_STRIDE * 8;
+
+					if (__vertexBufferData == null || __vertexBufferData.length < bufferSize)
+					{
+						__vertexBufferData = new Float32Array(bufferSize);
+					}
 
 					var top = scale9Grid.y;
 					var bottom = height - centerY - top;
@@ -1962,7 +1972,12 @@ class BitmapData implements IBitmapDrawable
 
 			if (__vertexBuffer == null)
 			{
-				__vertexBufferData = new Float32Array(VERTEX_BUFFER_STRIDE * 4);
+				var bufferSize = VERTEX_BUFFER_STRIDE * 4;
+
+				if (__vertexBufferData == null || __vertexBufferData.length < bufferSize)
+				{
+					__vertexBufferData = new Float32Array(bufferSize);
+				}
 
 				__vertexBufferData[0] = width;
 				__vertexBufferData[1] = height;

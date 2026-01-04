@@ -1171,7 +1171,9 @@ class Context3DGraphics
 		}
 		else if (length > buffer.length)
 		{
-			newBuffer = new Float32Array(length);
+			var newLength = buffer.length * 2;
+			if (newLength < length) newLength = length;
+			newBuffer = new Float32Array(newLength);
 			newBuffer.set(buffer);
 		}
 		#end
