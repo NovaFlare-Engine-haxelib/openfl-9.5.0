@@ -239,7 +239,7 @@ class CanvasRenderer extends DisplayObjectRenderer
 	@:noCompletion private override function __setBlendMode(value:BlendMode):Void
 	{
 		if (__overrideBlendMode != null) value = __overrideBlendMode;
-		if (__blendMode == value) return;
+		if (__blendMode != null && (__blendMode == value || ((__blendMode == NORMAL) && (value == null || value == NORMAL)))) return;
 
 		__blendMode = value;
 		__setBlendModeContext(context, value);

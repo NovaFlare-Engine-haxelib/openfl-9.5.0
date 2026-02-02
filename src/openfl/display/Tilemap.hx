@@ -24,6 +24,11 @@ import openfl.display._internal.Context3DBuffer;
 	such as custom `shader` references, and color transform. Using multiple Shader
 	or Tileset references will require a new draw call each time there is a change.
 
+	**Performance Tip:** To achieve the best performance with mixed blend modes,
+	it is recommended to use the `TilemapLayerGroup` class or manually separate 
+	tiles into different Tilemap instances based on their `blendMode`, rather than 
+	enabling `tileBlendModeEnabled`.
+
 	**Note:** The Tilemap class is not a subclass of the InteractiveObject
 	class, so it cannot dispatch mouse events. However, you can use the
 	`addEventListener()` method of the display object container that
@@ -376,7 +381,7 @@ class Tilemap extends #if !flash DisplayObject #else Bitmap implements IDisplayO
 	}
 
 	#if !flash
-	@:noCompletion private override function __enterFrame(deltaTime:Int):Void
+	@:noCompletion private override function __enterFrame(deltaTime:Float):Void
 	{
 		if (__group.__dirty)
 		{
