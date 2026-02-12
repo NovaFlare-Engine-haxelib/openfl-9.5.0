@@ -502,7 +502,7 @@ final class NativeVideo extends Bitmap {
 		__audioBitsPerSample = __videoGetAudioBitsPerSample();
 	}
 
-	@:noCompletion override private function __enterFrame(deltaTime:Int):Void {
+	@:noCompletion override private function __enterFrame(deltaTime:Float):Void {
 		super.__enterFrame(deltaTime);
 	
 		if (!isPlaying) return;

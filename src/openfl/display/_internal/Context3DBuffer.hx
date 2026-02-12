@@ -125,9 +125,7 @@ class Context3DBuffer
 		else if (vertexLength > vertexBufferData.length)
 		{
 			var cacheBufferData = vertexBufferData;
-			var newLength = vertexBufferData.length * 2;
-			if (newLength < vertexLength) newLength = vertexLength;
-			vertexBufferData = new Float32Array(newLength);
+			vertexBufferData = new Float32Array(vertexLength);
 			vertexBufferData.set(cacheBufferData);
 		}
 		#end

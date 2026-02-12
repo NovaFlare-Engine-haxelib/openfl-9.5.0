@@ -168,7 +168,7 @@ extern class Stage extends DisplayObjectContainer implements IModule
 	public function onWindowMove(x:Float, y:Float):Void;
 	public function onWindowResize(width:Int, height:Int):Void;
 	public function onWindowRestore():Void;
-	public function update(deltaTime:Int):Void;
+	public function update(deltaTime:Float):Void;
 
 	#if (haxe_ver >= 4.3)
 	private function get_align():StageAlign;

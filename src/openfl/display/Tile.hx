@@ -41,10 +41,6 @@ class Tile
 		A value from the BlendMode class that specifies which blend mode to use.
 
 		This property is supported only when using hardware rendering or the Flash target.
-
-		**Performance Note:** Setting this property on many tiles can significantly
-		decrease performance due to increased draw calls. Consider using 
-		`TilemapLayerGroup` to group tiles by blend mode instead.
 	**/
 	public var blendMode(get, set):BlendMode;
 

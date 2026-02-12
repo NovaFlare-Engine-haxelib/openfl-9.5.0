@@ -545,7 +545,7 @@ class Context3DTilemap
 				if ((forceFlush)
 					|| (shader != currentShader)
 					|| (bitmapData != currentBitmapData && currentBitmapData != null)
-					|| (currentBlendMode != blendMode && !((currentBlendMode == null || currentBlendMode == NORMAL) && (blendMode == null || blendMode == NORMAL))))
+					|| (currentBlendMode != blendMode))
 				{
 					flush(tilemap, renderer, currentBlendMode);
 				}

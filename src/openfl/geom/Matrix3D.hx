@@ -1879,49 +1879,6 @@ class Matrix3D
 	**/
 	public function transformVectors(vin:Vector<Float>, vout:Vector<Float>):Void
 	{
-		#if cpp
-		if (vin == null || vout == null) return;
-
-		// Try to access the underlying Array<Float> for direct pointer access.
-		// OpenFL Vector implementation typically returns ArrayIterator which exposes the array.
-		var vinIter = Std.downcast(vin.iterator(), haxe.iterators.ArrayIterator);
-		var voutIter = Std.downcast(vout.iterator(), haxe.iterators.ArrayIterator);
-		var rawDataIter = Std.downcast(rawData.iterator(), haxe.iterators.ArrayIterator);
-
-		if (vinIter != null && voutIter != null && rawDataIter != null)
-		{
-			var vinArray:Array<Float> = @:privateAccess vinIter.array;
-			var voutArray:Array<Float> = @:privateAccess voutIter.array;
-			var rawDataArray:Array<Float> = @:privateAccess rawDataIter.array;
-
-			if (vinArray != null && voutArray != null && rawDataArray != null)
-			{
-				var len = vin.length;
-				if (len > vout.length) len = vout.length;
-				var count = Std.int(len / 3) * 3;
-
-				untyped __cpp__("
-					const double* inPtr = &vinArray[0];
-					double* outPtr = &voutArray[0];
-					const double* m = &rawDataArray[0];
-					
-					// Optimized C++ loop using raw pointers.
-					// This enables the compiler to use SIMD instructions (SSE2/NEON) automatically.
-					for(int i = 0; i < count; i+=3) {
-						double x = inPtr[i];
-						double y = inPtr[i+1];
-						double z = inPtr[i+2];
-						
-						outPtr[i]   = x * m[0] + y * m[4] + z * m[8]  + m[12];
-						outPtr[i+1] = x * m[1] + y * m[5] + z * m[9]  + m[13];
-						outPtr[i+2] = x * m[2] + y * m[6] + z * m[10] + m[14];
-					}
-				");
-				return;
-			}
-		}
-		#end
-
 		var i = 0;
 		var x:Float, y:Float, z:Float;
 
