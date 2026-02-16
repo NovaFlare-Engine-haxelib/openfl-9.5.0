@@ -2322,6 +2322,64 @@ class BitmapData implements IBitmapDrawable
 		return __texture;
 	}
 
+	public function getTextureAsync(context:Context3D, callback:TextureBase->Void, sliceHeight:Int = 128):Void
+	{
+		#if (cpp || neko)
+		if (!__isValid)
+		{
+			if (callback != null) callback(null);
+			return;
+		}
+
+		if (__texture == null || __textureContext != context.__context)
+		{
+			__textureContext = context.__context;
+			__texture = context.createRectangleTexture(width, height, BGRA, false);
+			__textureVersion = -1;
+		}
+
+		if (image != null && image.version > __textureVersion)
+		{
+			if (__surface != null) __surface.flush();
+
+			var textureImage = image;
+			#if openfl_power_of_two
+			if (!textureImage.powerOfTwo) {
+				textureImage = textureImage.clone();
+				textureImage.powerOfTwo = true;
+			}
+			#end
+			if (!textureImage.premultiplied && textureImage.transparent) {
+				if (textureImage == image) textureImage = textureImage.clone();
+				textureImage.premultiplied = true;
+			}
+
+			var uploader = new openfl.display._internal.AsyncTextureUploader();
+			uploader.init(textureImage, context, __texture, sliceHeight, function(tex) {
+				__textureVersion = image.version;
+				__textureWidth = textureImage.buffer.width;
+				__textureHeight = textureImage.buffer.height;
+				
+				if (!readable && image != null) {
+					__surface = null;
+					image = null;
+				}
+				
+				if (callback != null) callback(tex);
+				
+				uploader.dispose();
+			});
+		}
+		else
+		{
+			if (callback != null) callback(__texture);
+		}
+		#else
+		var texture = getTexture(context);
+		if (callback != null) callback(texture);
+		#end
+	}
+
 	/**
 		Generates a vector array from a rectangular region of pixel data. Returns
 		a Vector object of unsigned integers (a 32-bit unmultiplied pixel value)
