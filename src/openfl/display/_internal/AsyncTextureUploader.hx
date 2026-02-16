@@ -17,7 +17,9 @@ class AsyncTextureUploader {
 	private var currentImage:Image;
 	private var currentTexture:TextureBase;
 	private var currentY:Int = 0;
+	private var currentX:Int = 0;
 	private var sliceHeight:Int = 0;
+	private var sliceWidth:Int = 0; // 新增：切片宽度
 	private var onCompleteCallback:TextureBase->Void;
 	private var isUploading:Bool = false;
 	private var context:Context3D;
@@ -28,7 +30,7 @@ class AsyncTextureUploader {
 		#end
 	}
 
-	public function init(image:Image, context:Context3D, texture:TextureBase, sliceHeight:Int = 128, ?onComplete:TextureBase->Void):Void {
+	public function init(image:Image, context:Context3D, texture:TextureBase, sliceSize:Int = 128, ?onComplete:TextureBase->Void):Void {
 		if (isUploading) {
 			// trace("⚠️ AsyncTextureUploader busy!");
 			return;
@@ -42,20 +44,16 @@ class AsyncTextureUploader {
 		this.context = context;
 		var gl = @:privateAccess context.gl;
 
-		// 确保纹理已绑定
 		@:privateAccess context.__bindGLTexture2D(texture.__textureID);
 		
-		// 必须设置参数
-		// gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-		// gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-		// gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		// gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
 		this.currentTexture = texture;
 		this.currentImage = image;
-		this.sliceHeight = sliceHeight;
+		this.sliceHeight = sliceSize;
+		this.sliceWidth = sliceSize;
+		
 		this.onCompleteCallback = onComplete;
 		this.currentY = 0;
+		this.currentX = 0;
 		this.isUploading = true;
 
 		var BGRA_EXT = 0x80E1; // Standard OpenGL value for GL_BGRA_EXT
@@ -72,56 +70,91 @@ class AsyncTextureUploader {
 	private function onUpdate(deltaTime:Float):Void {
 		if (!isUploading) return;
 
+		// 检查是否完成
 		if (currentY >= currentImage.height) {
 			finishUpload();
 			return;
 		}
 
 		var gl = @:privateAccess context.gl;
-		var remaining = currentImage.height - currentY;
-		var h = (remaining > sliceHeight) ? sliceHeight : remaining;
+		var remainingH = currentImage.height - currentY;
+		var h = (remainingH > sliceHeight) ? sliceHeight : remainingH;
+		
+		// 水平切分逻辑
+		var remainingW = currentImage.width - currentX;
+		var w = (remainingW > sliceWidth) ? sliceWidth : remainingW;
 
 		#if (cpp || neko)
 		// PIXEL_UNPACK_BUFFER is 0x88EC
 		var PIXEL_UNPACK_BUFFER = 0x88EC;
 		gl.bindBuffer(PIXEL_UNPACK_BUFFER, pbo);
 
-		var bytesPerPixel = 4; // RGBA
-		var stride = currentImage.width * bytesPerPixel;
-		var startByte = currentY * stride;
-		var dataSize = h * stride;
-
-		// 确保数据不会越界
-		if (startByte + dataSize > currentImage.data.buffer.length) {
-			dataSize = currentImage.data.buffer.length - startByte;
+		var UNPACK_ROW_LENGTH = 0x0CF2;
+		gl.pixelStorei(UNPACK_ROW_LENGTH, currentImage.width);
+		
+		// 计算起始位置
+		var bytesPerPixel = 4;
+		var startByte = (currentY * currentImage.width + currentX) * bytesPerPixel;
+		
+		if (w == currentImage.width) {
+			// 连续内存模式 (Fast Path)
+			var dataSize = w * h * bytesPerPixel;
+			
+			if (startByte + dataSize > currentImage.data.buffer.length) {
+				dataSize = currentImage.data.buffer.length - startByte;
+			}
+			
+			var pointer = new BytePointer(currentImage.data.buffer, startByte);
+			@:privateAccess lime.graphics.opengl.GL.bufferData(PIXEL_UNPACK_BUFFER, dataSize, pointer, gl.STREAM_DRAW);
+			
+			gl.pixelStorei(UNPACK_ROW_LENGTH, 0); 
+			
+			var BGRA_EXT = 0x80E1;
+			var format = @:privateAccess TextureBase.__supportsBGRA ? BGRA_EXT : gl.RGBA;
+			
+			@:privateAccess context.__bindGLTexture2D(currentTexture.__textureID);
+			@:privateAccess lime.graphics.opengl.GL.texSubImage2D(gl.TEXTURE_2D, 0, currentX, currentY, w, h, format, gl.UNSIGNED_BYTE, cast 0);
+			@:privateAccess context.__bindGLTexture2D(null);
+			
+		} else {
+			var tempSize = w * h * bytesPerPixel;
+			var tempBuffer = new UInt8Array(tempSize);
+			var srcData = currentImage.data;
+			
+			for (i in 0...h) {
+				var srcPos = ((currentY + i) * currentImage.width + currentX) * bytesPerPixel;
+				var dstPos = i * w * bytesPerPixel;
+				// copy 这一行
+				var sub = srcData.subarray(srcPos, srcPos + w * bytesPerPixel);
+				tempBuffer.set(sub, dstPos);
+			}
+			
+			var pointer = new BytePointer(tempBuffer.buffer, 0);
+			@:privateAccess lime.graphics.opengl.GL.bufferData(PIXEL_UNPACK_BUFFER, tempSize, pointer, gl.STREAM_DRAW);
+			gl.pixelStorei(UNPACK_ROW_LENGTH, 0);
+			
+			var BGRA_EXT = 0x80E1;
+			var format = @:privateAccess TextureBase.__supportsBGRA ? BGRA_EXT : gl.RGBA;
+			
+			@:privateAccess context.__bindGLTexture2D(currentTexture.__textureID);
+			@:privateAccess lime.graphics.opengl.GL.texSubImage2D(gl.TEXTURE_2D, 0, currentX, currentY, w, h, format, gl.UNSIGNED_BYTE, cast 0);
+			@:privateAccess context.__bindGLTexture2D(null);
 		}
 
-		var pointer = new BytePointer(currentImage.data.buffer, startByte);
-		
-		@:privateAccess lime.graphics.opengl.GL.bufferData(PIXEL_UNPACK_BUFFER, dataSize, pointer, gl.STREAM_DRAW);
-
-		var BGRA_EXT = 0x80E1; // Standard OpenGL value for GL_BGRA_EXT
-		var format = @:privateAccess TextureBase.__supportsBGRA ? BGRA_EXT : gl.RGBA;
-
-		@:privateAccess context.__bindGLTexture2D(currentTexture.__textureID);
-		
-		@:privateAccess lime.graphics.opengl.GL.texSubImage2D(gl.TEXTURE_2D, 0, 0, currentY, currentImage.width, h, format, gl.UNSIGNED_BYTE, cast 0);
-		
-		@:privateAccess context.__bindGLTexture2D(null);
-
 		gl.bindBuffer(PIXEL_UNPACK_BUFFER, 0);
+		gl.pixelStorei(UNPACK_ROW_LENGTH, 0);
+		
 		#else
-		// Fallback
 		@:privateAccess context.__bindGLTexture2D(currentTexture.__textureID);
-		var stride = currentImage.width * 4;
-		var start = currentY * stride;
-		var end = start + (h * stride);
-		var subData = currentImage.data.subarray(start, end);
-		gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, currentY, currentImage.width, h, gl.RGBA, gl.UNSIGNED_BYTE, subData);
+		var subData = currentImage.data.subarray(0, 0); // Placeholder
 		@:privateAccess context.__bindGLTexture2D(null);
 		#end
 
-		currentY += h;
+		currentX += w;
+		if (currentX >= currentImage.width) {
+			currentX = 0;
+			currentY += h;
+		}
 	}
 
 	private function finishUpload():Void {

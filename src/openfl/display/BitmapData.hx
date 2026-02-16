@@ -2322,7 +2322,7 @@ class BitmapData implements IBitmapDrawable
 		return __texture;
 	}
 
-	public function getTextureAsync(context:Context3D, callback:TextureBase->Void, sliceHeight:Int = 128):Void
+	public function getTextureAsync(context:Context3D, callback:TextureBase->Void, sliceSize:Int = 1024):Void
 	{
 		#if (cpp || neko)
 		if (!__isValid)
@@ -2355,7 +2355,7 @@ class BitmapData implements IBitmapDrawable
 			}
 
 			var uploader = new openfl.display._internal.AsyncTextureUploader();
-			uploader.init(textureImage, context, __texture, sliceHeight, function(tex) {
+			uploader.init(textureImage, context, __texture, sliceSize, function(tex) {
 				__textureVersion = image.version;
 				__textureWidth = textureImage.buffer.width;
 				__textureHeight = textureImage.buffer.height;
