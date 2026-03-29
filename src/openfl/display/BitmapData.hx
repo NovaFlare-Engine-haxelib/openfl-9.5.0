@@ -173,6 +173,7 @@ class BitmapData implements IBitmapDrawable
 		will need to be recreated if the current hardware rendering context is lost.
 	**/
 	@:beta public var readable(default, null):Bool;
+	public var disposeOnUpload:Bool = false;
 
 	// #end
 
@@ -1344,13 +1345,13 @@ class BitmapData implements IBitmapDrawable
 		@param	path	A local file path containing an image
 		@returns	A new BitmapData if successful, or `null` if unsuccessful
 	**/
-	public static function fromFile(path:String):BitmapData
+	public static function fromFile(path:String, disposeOnUpload:Bool = false):BitmapData
 	{
 		#if (js && html5)
 		return null;
 		#else
 		var bitmapData = new BitmapData(0, 0, true, 0);
-		bitmapData.__fromFile(path);
+		bitmapData.__fromFile(path, disposeOnUpload);
 		return bitmapData.image != null ? bitmapData : null;
 		#end
 	}
@@ -2310,6 +2311,8 @@ class BitmapData implements IBitmapDrawable
 
 			__textureWidth = textureImage.buffer.width;
 			__textureHeight = textureImage.buffer.height;
+
+			if (disposeOnUpload) readable = false;
 		}
 
 		if (!readable && image != null)
@@ -2359,6 +2362,8 @@ class BitmapData implements IBitmapDrawable
 				__textureVersion = image.version;
 				__textureWidth = textureImage.buffer.width;
 				__textureHeight = textureImage.buffer.height;
+
+				if (disposeOnUpload) readable = false;
 				
 				if (!readable && image != null) {
 					__surface = null;
@@ -3351,11 +3356,12 @@ class BitmapData implements IBitmapDrawable
 		#end
 	}
 
-	@:noCompletion private function __fromFile(path:String):Void
+	@:noCompletion private function __fromFile(path:String, disposeOnUpload:Bool = false):Void
 	{
 		#if lime
 		var image = Image.fromFile(path);
 		__fromImage(image);
+		this.disposeOnUpload = disposeOnUpload;
 		#end
 	}
 

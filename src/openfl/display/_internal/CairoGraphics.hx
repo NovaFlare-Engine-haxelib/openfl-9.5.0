@@ -465,6 +465,7 @@ class CairoGraphics
 			if (graphics.__cairo == null)
 			{
 				var bitmap = new BitmapData(Math.floor(Math.max(1, bounds.width)), Math.floor(Math.max(1, bounds.height)), true, 0);
+				bitmap.disposeOnUpload = false;
 				var surface = bitmap.getSurface();
 				graphics.__cairo = new Cairo(surface);
 				// graphics.__bitmap = bitmap;
@@ -1887,6 +1888,7 @@ class CairoGraphics
 			if (graphics.__cairo == null || graphics.__bitmap == null)
 			{
 				var bitmap = needsUpscaling ? new BitmapData(Std.int(width * 1.25), Std.int(height * 1.25), true, 0) : new BitmapData(width, height, true, 0);
+				bitmap.disposeOnUpload = false;
 				var surface = bitmap.getSurface();
 				graphics.__cairo = new Cairo(surface);
 				graphics.__bitmap = bitmap;

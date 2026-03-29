@@ -149,6 +149,7 @@ class CairoTextField
 			}
 
 			var bitmap = new BitmapData(bitmapWidth, bitmapHeight, true, 0);
+			bitmap.disposeOnUpload = false;
 			var surface = bitmap.getSurface();
 			graphics.__cairo = new Cairo(surface);
 			graphics.__visible = true;
