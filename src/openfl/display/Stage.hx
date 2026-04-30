@@ -30,8 +30,11 @@ import openfl.ui.GameInput;
 import openfl.ui.Keyboard;
 import openfl.ui.Mouse;
 import openfl.ui.MouseCursor;
+
 #if lime
 import lime.app.Application;
+import lime.system.Display;
+import lime.system.System;
 import lime.app.IModule;
 import lime.graphics.RenderContext;
 import lime.graphics.RenderContextType;
@@ -1006,6 +1009,8 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	@:noCompletion private var __lastClickTarget:InteractiveObject;
 	@:noCompletion private var __logicalWidth:Int;
 	@:noCompletion private var __logicalHeight:Int;
+	@:noCompletion private var __desiredLogicalWidth:Int;
+	@:noCompletion private var __desiredLogicalHeight:Int;
 	@:noCompletion private var __macKeyboard:Bool;
 	@:noCompletion private var __mouseDownLeft:InteractiveObject;
 	@:noCompletion private var __mouseDownMiddle:InteractiveObject;
@@ -2785,6 +2790,16 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	{
 		if (this.window == null || this.window != window) return;
 
+		if (__desiredLogicalWidth > 0 && __desiredLogicalHeight > 0)
+		{
+			#if mobile
+			var display:Display = System.getDisplay(0);
+			calcScreen(display.bounds.width, display.bounds.height, __desiredLogicalWidth, __desiredLogicalHeight);
+			#else
+			calcScreen(Application.current.window.width, Application.current.window.height, __desiredLogicalWidth, __desiredLogicalHeight);
+			#end
+		}
+
 		__resize();
 
 		#if android
@@ -3638,7 +3653,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		}
 		else
 		{
-			if (__logicalWidth == 0 || __logicalHeight == 0 || scaleMode == NO_SCALE || windowWidth == 0 || windowHeight == 0)
+			if (__logicalWidth == 0 || __logicalHeight == 0 || windowWidth == 0 || windowHeight == 0)
 			{
 				#if openfl_dpi_aware
 				stageWidth = windowWidth;
@@ -3666,6 +3681,12 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 						__displayMatrix.scale(displayScaleX, displayScaleY);
 						__displayRect.setTo(0, 0, __logicalWidth, __logicalHeight);
 
+					case NO_SCALE:
+						var scaleX = windowWidth / __logicalWidth;
+						var scaleY = windowHeight / __logicalHeight;
+						var scale = Math.min(scaleX, scaleY);
+						__applyScaleAndAlign(windowWidth, windowHeight, scale, scale);
+
 					case NO_BORDER:
 						var scaleX = windowWidth / __logicalWidth;
 						var scaleY = windowHeight / __logicalHeight;
@@ -3687,11 +3708,18 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 		if (context3D != null)
 		{
-			#if openfl_dpi_aware
-			context3D.configureBackBuffer(windowWidth, windowHeight, 0, true, true, true);
-			#else
-			context3D.configureBackBuffer(stageWidth, stageHeight, 0, true, true, true);
-			#end
+			if (__logicalWidth > 0 && __logicalHeight > 0 && scaleMode == NO_SCALE)
+			{
+				context3D.configureBackBuffer(windowWidth, windowHeight, 0, true, true, true);
+			}
+			else
+			{
+				#if openfl_dpi_aware
+				context3D.configureBackBuffer(windowWidth, windowHeight, 0, true, true, true);
+				#else
+				context3D.configureBackBuffer(stageWidth, stageHeight, 0, true, true, true);
+				#end
+			}
 		}
 
 		for (stage3D in stage3Ds)
@@ -3729,10 +3757,40 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 	@:noCompletion private function __setLogicalSize(width:Int, height:Int):Void
 	{
-		__logicalWidth = width;
-		__logicalHeight = height;
+		__desiredLogicalWidth = width;
+		__desiredLogicalHeight = height;
+
+		try
+		{
+		#if mobile
+		var display:Display = System.getDisplay(0);
+		calcScreen(display.bounds.width, display.bounds.height, width, height);
+		#else
+		calcScreen(Application.current.window.width, Application.current.window.height, width, height);
+		#end
+		}
+		catch (e)
+		{
+			__logicalWidth = width;
+			__logicalHeight = height;
+		}
+
+
 
 		__resize();
+	}
+
+	inline function calcScreen(stageWidth:Float, stageHeight:Float, wantWidth:Int = 1280, wantHeight:Int = 720) {
+		var ratioX = stageWidth / wantWidth;
+		var ratioY = stageHeight / wantHeight;
+		var ratio = Math.max(ratioX, ratioY);
+		__logicalWidth = Math.ceil(stageWidth / ratio);
+		__logicalHeight = Math.ceil(stageHeight / ratio);
+	}
+
+	public function setLogicalSize(width:Int, height:Int):Void
+	{
+		__setLogicalSize(width, height);
 	}
 
 	@:noCompletion private function __startDrag(sprite:Sprite, lockCenter:Bool, bounds:Rectangle):Void
