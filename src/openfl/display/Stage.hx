@@ -3781,8 +3781,19 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	}
 
 	inline function calcScreen(stageWidth:Float, stageHeight:Float, wantWidth:Int = 1280, wantHeight:Int = 720) {
-		__logicalWidth = Std.int(Math.min(stageWidth, wantWidth));
-		__logicalHeight = Std.int(Math.min(stageHeight, wantHeight));
+		#if mobile 
+		var ratioX = stageWidth / wantWidth;
+		var ratioY = stageHeight / wantHeight;
+		var ratio = Math.max(ratioX, ratioY);
+		__logicalWidth = Math.ceil(stageWidth / ratio);
+		__logicalHeight = Math.ceil(stageHeight / ratio);
+		#else
+		var ratioX = Std.int(Math.min(stageWidth, wantWidth) / wantWidth);
+		var ratioY = Std.int(Math.min(stageHeight, wantHeight) / wantHeight);
+		var ratio = Math.max(ratioX, ratioY);
+		__logicalWidth = Math.ceil(Math.min(stageWidth, wantWidth) / ratio);
+		__logicalHeight = Math.ceil(Math.min(stageHeight, wantHeight) / ratio);
+		#end
 	}
 
 	public function setLogicalSize(width:Int, height:Int):Void
