@@ -1928,15 +1928,22 @@ import lime.math.Vector2;
 
 		if (buffer == null)
 		{
-			gl.disableVertexAttribArray(index);
+			__setVertexAttribArray(index, false);
 			__bindGLArrayBuffer(null);
+			__invalidateVertexBufferAt(index);
 			return;
 		}
 
-		__bindGLArrayBuffer(buffer.__id);
-		gl.enableVertexAttribArray(index);
-
 		var byteOffset = bufferOffset * 4;
+		var pointerDirty = #if openfl_disable_context_cache true #else
+			__contextState.__vertexBuffers[index] != buffer
+			|| __contextState.__vertexBufferOffsets[index] != byteOffset
+			|| __contextState.__vertexBufferFormats[index] != format
+			#end;
+
+		__bindGLArrayBuffer(buffer.__id);
+		__setVertexAttribArray(index, true);
+		if (!pointerDirty) return;
 
 		switch (format)
 		{
@@ -1957,6 +1964,35 @@ import lime.math.Vector2;
 
 			default:
 				throw new IllegalOperationError();
+		}
+
+		__contextState.__vertexBuffers[index] = buffer;
+		__contextState.__vertexBufferOffsets[index] = byteOffset;
+		__contextState.__vertexBufferFormats[index] = format;
+	}
+
+	@:noCompletion public inline function __invalidateVertexBufferAt(index:Int):Void
+	{
+		if (index >= 0)
+			__contextState.__vertexBuffers[index] = null;
+	}
+
+	@:noCompletion public inline function __setVertexAttribArray(index:Int, enabled:Bool):Void
+	{
+		if (index < 0) return;
+
+		if (#if openfl_disable_context_cache true #else __contextState.__vertexAttribArrays[index] != enabled #end)
+		{
+			if (enabled)
+			{
+				gl.enableVertexAttribArray(index);
+			}
+			else
+			{
+				gl.disableVertexAttribArray(index);
+			}
+
+			__contextState.__vertexAttribArrays[index] = enabled;
 		}
 	}
 
@@ -2463,12 +2499,12 @@ import lime.math.Vector2;
 				#end
 				var x = __stage3D == null ? 0 : Std.int(__stage3D.x);
 				var y = Std.int((__stage.window.height * __stage.window.scale) - scaledBackBufferHeight - (__stage3D == null ? 0 : __stage3D.y));
-				gl.viewport(x, y, scaledBackBufferWidth, scaledBackBufferHeight);
-			}
-			else
-			{
-				gl.viewport(0, 0, backBufferWidth, backBufferHeight);
-			}
+					gl.viewport(x, y, scaledBackBufferWidth, scaledBackBufferHeight);
+				}
+				else
+				{
+					gl.viewport(0, 0, backBufferWidth, backBufferHeight);
+				}
 		}
 		else
 		{

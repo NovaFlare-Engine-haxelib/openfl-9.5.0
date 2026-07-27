@@ -178,7 +178,7 @@ import openfl.display3D.Context3D;
 		{
 			for (i in 0...__arrayLength)
 			{
-				gl.disableVertexAttribArray(index + i);
+				context.__setVertexAttribArray(index + i, false);
 			}
 		}
 	}
@@ -320,7 +320,7 @@ import openfl.display3D.Context3D;
 			{
 				for (i in 0...__arrayLength)
 				{
-					gl.disableVertexAttribArray(index + i);
+					context.__setVertexAttribArray(index + i, false);
 				}
 
 				if (value != null)
@@ -412,7 +412,7 @@ import openfl.display3D.Context3D;
 			{
 				for (i in 0...__arrayLength)
 				{
-					gl.enableVertexAttribArray(index + i);
+					context.__setVertexAttribArray(index + i, true);
 				}
 			}
 		}
@@ -489,7 +489,7 @@ import openfl.display3D.Context3D;
 			{
 				for (i in 0...__arrayLength)
 				{
-					gl.disableVertexAttribArray(index + i);
+					context.__setVertexAttribArray(index + i, false);
 				}
 
 				if (length > 0)
@@ -570,13 +570,14 @@ import openfl.display3D.Context3D;
 
 				for (i in 0...__arrayLength)
 				{
-					gl.enableVertexAttribArray(index + i);
+					context.__setVertexAttribArray(index + i, true);
 				}
 
 				if (length > 0)
 				{
 					for (i in 0...__arrayLength)
 					{
+						context.__invalidateVertexBufferAt(index + i);
 						gl.vertexAttribPointer(index + i, __length, type, false, __length * Float32Array.BYTES_PER_ELEMENT,
 							(position + (bufferOffset * __length) + (i * __arrayLength)) * Float32Array.BYTES_PER_ELEMENT);
 					}

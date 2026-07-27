@@ -699,8 +699,16 @@ class DisplayObjectContainer extends InteractiveObject
 
 	@:noCompletion private inline function __cleanupRemovedChildren():Void
 	{
-		for (orphan in __removedChildren)
+		// This runs for every display-list container on every render. Avoid
+		// allocating Vector's iterator in the overwhelmingly common empty case.
+		var orphanCount = __removedChildren.length;
+		if (orphanCount == 0)
+			return;
+
+		var orphanIndex = 0;
+		while (orphanIndex < orphanCount)
 		{
+			var orphan = __removedChildren[orphanIndex++];
 			if (orphan.stage == null)
 			{
 				orphan.__cleanup();

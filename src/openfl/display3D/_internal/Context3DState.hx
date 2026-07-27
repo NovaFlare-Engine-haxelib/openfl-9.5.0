@@ -11,7 +11,9 @@ import openfl.display3D.Context3DBlendFactor;
 import openfl.display3D.Context3DCompareMode;
 import openfl.display3D.Context3DStencilAction;
 import openfl.display3D.Context3DTriangleFace;
+import openfl.display3D.Context3DVertexBufferFormat;
 import openfl.display3D.Program3D;
+import openfl.display3D.VertexBuffer3D;
 import openfl.display.Shader;
 import openfl.geom.Rectangle;
 #if lime
@@ -72,6 +74,10 @@ class Context3DState
 	private var __rttGLFramebuffer:GLFramebuffer;
 	private var __rttGLRenderbuffer:GLRenderbuffer;
 	private var __rttStencilGLRenderbuffer:GLRenderbuffer;
+	private var __vertexAttribArrays:Array<Bool>;
+	private var __vertexBuffers:Array<VertexBuffer3D>;
+	private var __vertexBufferOffsets:Array<Int>;
+	private var __vertexBufferFormats:Array<Context3DVertexBufferFormat>;
 
 	public function new()
 	{
@@ -98,6 +104,10 @@ class Context3DState
 		stencilTriangleFace = FRONT_AND_BACK;
 		stencilWriteMask = 0xFF;
 		textures = new Array();
+		__vertexAttribArrays = new Array();
+		__vertexBuffers = new Array();
+		__vertexBufferOffsets = new Array();
+		__vertexBufferFormats = new Array();
 		__frontFaceGLCCW = true;
 
 		#if lime

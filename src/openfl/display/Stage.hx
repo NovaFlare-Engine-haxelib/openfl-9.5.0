@@ -1027,6 +1027,18 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	@:noCompletion private var __quality:StageQuality;
 	@:noCompletion private var __renderer:DisplayObjectRenderer;
 	@:noCompletion private var __rendering:Bool;
+	#if sys
+	@:noCompletion private static var __novaPerfTrace:Bool = Sys.getEnv("NOVAGC_PERF_TRACE") != null;
+	@:noCompletion private static var __novaPerfWindowStart:Float = 0.0;
+	@:noCompletion private static var __novaPerfCount:Int = 0;
+	@:noCompletion private static var __novaPerfTotal:Float = 0.0;
+	@:noCompletion private static var __novaPerfUpdateTree:Float = 0.0;
+	@:noCompletion private static var __novaPerfRendererGap:Float = 0.0;
+	@:noCompletion private static var __novaPerfRenderer:Float = 0.0;
+	@:noCompletion private static var __novaPerfTail:Float = 0.0;
+	@:noCompletion private static var __novaPerfMax:Float = 0.0;
+	#end
+	@:noCompletion private var __lastCompositeTime:Int;
 	@:noCompletion private var __rollOutStack:Array<DisplayObject>;
 	@:noCompletion private var __scaleMode:StageScaleMode;
 	@:noCompletion private var __stack:Array<DisplayObject>;
@@ -1117,6 +1129,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		__displayMatrix = new Matrix();
 		__displayRect = new Rectangle();
 		__renderDirty = true;
+		__lastCompositeTime = 0;
 
 		stage3Ds = new Vector();
 		for (i in 0...#if mobile 2 #else 4 #end)
@@ -2282,21 +2295,46 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 	@:noCompletion private function __renderAfterEvent():Void
 	{
+		#if sys
+		var __novaStarted = __novaPerfTrace ? haxe.Timer.stamp() : 0.0;
+		var __novaAfterBackend = 0.0;
+		var __novaAfterRender = 0.0;
+		#end
 		#if (cpp || hl || neko)
 		// TODO: should Lime have a public API to force rendering?
 		window.__backend.render();
 		#end
+		#if sys
+		if (__novaPerfTrace) __novaAfterBackend = haxe.Timer.stamp();
+		#end
 		var cancelled = __render(window.context);
+		#if sys
+		if (__novaPerfTrace) __novaAfterRender = haxe.Timer.stamp();
+		#end
 		#if (cpp || hl || neko)
 		if (!cancelled)
 		{
 			window.__backend.contextFlip();
 		}
 		#end
+		#if sys
+		if (__novaPerfTrace)
+		{
+			var __novaEnded = haxe.Timer.stamp();
+			if (__novaEnded - __novaStarted >= 0.02)
+				Sys.println('perf:Stage.renderAfterEvent total_ms=${Math.round((__novaEnded - __novaStarted) * 1000)} backend_ms=${Math.round((__novaAfterBackend - __novaStarted) * 1000)} render_ms=${Math.round((__novaAfterRender - __novaAfterBackend) * 1000)} flip_ms=${Math.round((__novaEnded - __novaAfterRender) * 1000)}');
+		}
+		#end
 	}
 
 	@:noCompletion private function __render(context:RenderContext):Bool
 	{
+		#if sys
+		var __novaStarted = __novaPerfTrace ? haxe.Timer.stamp() : 0.0;
+		var __novaAfterUpdate = 0.0;
+		var __novaBeforeRenderer = 0.0;
+		var __novaAfterRenderer = 0.0;
+		#end
 		var cancelled = false;
 
 		var event:Event = null;
@@ -2331,6 +2369,9 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		#else
 		__update(false, true);
 		#end
+		#if sys
+		if (__novaPerfTrace) __novaAfterUpdate = haxe.Timer.stamp();
+		#end
 
 		#if lime
 		if (__renderer != null)
@@ -2349,6 +2390,9 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 			if (shouldRender)
 			{
+				#if sys
+				if (__novaPerfTrace) __novaBeforeRenderer = haxe.Timer.stamp();
+				#end
 				if (__renderer.__type == CAIRO)
 				{
 					#if lime_cairo
@@ -2362,6 +2406,9 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 				}
 
 				__renderer.__render(this);
+				#if sys
+				if (__novaPerfTrace) __novaAfterRenderer = haxe.Timer.stamp();
+				#end
 			}
 			else if (context3D == null)
 			{
@@ -2399,6 +2446,43 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		cpp.vm.tracy.TracyProfiler.frameMark();
 		#end
 
+		#if lime
+		__lastCompositeTime = Lib.getTimer();
+		#end
+		#if sys
+		if (__novaPerfTrace)
+		{
+			var __novaEnded = haxe.Timer.stamp();
+			var __novaTotal = __novaEnded - __novaStarted;
+			var __novaUpdateTree = __novaAfterUpdate - __novaStarted;
+			var __novaRenderer = __novaAfterRenderer > 0.0 ? __novaAfterRenderer - __novaBeforeRenderer : 0.0;
+			if (__novaTotal >= 0.02)
+				Sys.println('perf:Stage.render.slow total_ms=${Math.round(__novaTotal * 1000)} update_tree_ms=${Math.round(__novaUpdateTree * 1000)} renderer_ms=${Math.round(__novaRenderer * 1000)}');
+
+			if (__novaAfterRenderer > 0.0)
+			{
+				var __novaGap = __novaBeforeRenderer - __novaAfterUpdate;
+				var __novaTail = __novaEnded - __novaAfterRenderer;
+				if (__novaPerfWindowStart == 0.0) __novaPerfWindowStart = __novaStarted;
+				__novaPerfCount++;
+				__novaPerfTotal += __novaTotal;
+				__novaPerfUpdateTree += __novaUpdateTree;
+				__novaPerfRendererGap += __novaGap;
+				__novaPerfRenderer += __novaRenderer;
+				__novaPerfTail += __novaTail;
+				if (__novaTotal > __novaPerfMax) __novaPerfMax = __novaTotal;
+				if (__novaEnded - __novaPerfWindowStart >= 1.0)
+				{
+					var __novaScale = 1000000.0 / __novaPerfCount;
+					Sys.println('perf:Stage.render.avg frames=$__novaPerfCount total_us=${Math.round(__novaPerfTotal * __novaScale)} update_tree_us=${Math.round(__novaPerfUpdateTree * __novaScale)} gap_us=${Math.round(__novaPerfRendererGap * __novaScale)} renderer_us=${Math.round(__novaPerfRenderer * __novaScale)} tail_us=${Math.round(__novaPerfTail * __novaScale)} max_us=${Math.round(__novaPerfMax * 1000000)}');
+					__novaPerfWindowStart = __novaEnded;
+					__novaPerfCount = 0;
+					__novaPerfTotal = __novaPerfUpdateTree = __novaPerfRendererGap = __novaPerfRenderer = __novaPerfTail = __novaPerfMax = 0.0;
+				}
+			}
+		}
+		#end
+
 		return cancelled;
 	}
 
@@ -2430,22 +2514,29 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		__broadcastEvent(event);
 
 		Event.__pool.release(event);
-		event = Event.__pool.get();
-		event.type = Event.FRAME_CONSTRUCTED;
-
-		__broadcastEvent(event);
-
-		Event.__pool.release(event);
-		event = Event.__pool.get();
-		event.type = Event.EXIT_FRAME;
-
-		__broadcastEvent(event);
-
-		Event.__pool.release(event);
+		// FRAME_CONSTRUCTED and EXIT_FRAME normally have no listeners in games.
+		// Avoid two pool round-trips per presentation while preserving dynamic
+		// listeners used by tooling or mods.
+		if (DisplayObject.__broadcastEvents.exists(Event.FRAME_CONSTRUCTED))
+		{
+			event = Event.__pool.get();
+			event.type = Event.FRAME_CONSTRUCTED;
+			__broadcastEvent(event);
+			Event.__pool.release(event);
+		}
+		if (DisplayObject.__broadcastEvents.exists(Event.EXIT_FRAME))
+		{
+			event = Event.__pool.get();
+			event.type = Event.EXIT_FRAME;
+			__broadcastEvent(event);
+			Event.__pool.release(event);
+		}
 		#else
 		__broadcastEvent(new Event(Event.ENTER_FRAME));
-		__broadcastEvent(new Event(Event.FRAME_CONSTRUCTED));
-		__broadcastEvent(new Event(Event.EXIT_FRAME));
+		if (DisplayObject.__broadcastEvents.exists(Event.FRAME_CONSTRUCTED))
+			__broadcastEvent(new Event(Event.FRAME_CONSTRUCTED));
+		if (DisplayObject.__broadcastEvents.exists(Event.EXIT_FRAME))
+			__broadcastEvent(new Event(Event.EXIT_FRAME));
 		#end
 
 		__renderable = true;
@@ -2474,6 +2565,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 	@:noCompletion private function __onLimeRenderContextRestored(context:RenderContext):Void
 	{
+		__lastCompositeTime = 0;
 		__createRenderer();
 
 		for (stage3D in stage3Ds)
@@ -2796,7 +2888,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 			var display:Display = System.getDisplay(0);
 			calcScreen(display.bounds.width, display.bounds.height, __desiredLogicalWidth, __desiredLogicalHeight);
 			#else
-			calcScreen(Application.current.window.width, Application.current.window.height, __desiredLogicalWidth, __desiredLogicalHeight);
+			calcScreen(this.window.width, this.window.height, __desiredLogicalWidth, __desiredLogicalHeight);
 			#end
 		}
 
@@ -3766,7 +3858,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		var display:Display = System.getDisplay(0);
 		calcScreen(display.bounds.width, display.bounds.height, width, height);
 		#else
-		calcScreen(Application.current.window.width, Application.current.window.height, width, height);
+		calcScreen(this.window.width, this.window.height, width, height);
 		#end
 		}
 		catch (e)

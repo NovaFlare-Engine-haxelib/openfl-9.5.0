@@ -173,7 +173,7 @@ import lime.utils.Int16Array;
 		#end
 
 		#if lime
-		__audioSource.stop();
+		if (__audioSource != null) __audioSource.stop();
 		#end
 		__dispose();
 	}
@@ -183,8 +183,11 @@ import lime.utils.Int16Array;
 		if (!__isValid) return;
 
 		#if lime
-		__audioSource.onComplete.remove(audioSource_onComplete);
-		__audioSource.dispose();
+		if (__audioSource != null)
+		{
+			__audioSource.onComplete.remove(audioSource_onComplete);
+			__audioSource.dispose();
+		}
 		__audioSource = null;
 		#end
 		__isValid = false;
@@ -300,7 +303,7 @@ import lime.utils.Int16Array;
 	// Get & Set Methods
 	@:noCompletion private function get_position():Float
 	{
-		if (!__isValid) return 0;
+		if (!__isValid || __audioSource == null) return 0;
 
 		#if lime
 		return __audioSource.currentTime + __audioSource.offset;
@@ -311,7 +314,7 @@ import lime.utils.Int16Array;
 
 	@:noCompletion private function set_position(value:Float):Float
 	{
-		if (!__isValid) return 0;
+		if (!__isValid || __audioSource == null) return 0;
 
 		#if lime
 		__audioSource.currentTime = Std.int(value) - __audioSource.offset;
@@ -338,7 +341,7 @@ import lime.utils.Int16Array;
 
 			var volume = SoundMixer.__soundTransform.volume * __soundTransform.volume;
 
-			if (__isValid)
+			if (__isValid && __audioSource != null)
 			{
 				#if lime
 				__audioSource.gain = volume;

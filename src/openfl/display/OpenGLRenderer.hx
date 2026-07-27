@@ -63,6 +63,16 @@ class OpenGLRenderer extends DisplayObjectRenderer
 	@:noCompletion private static var __hasColorTransformValue:Array<Bool> = [false];
 	@:noCompletion private static var __scissorRectangle:Rectangle = new Rectangle();
 	@:noCompletion private static var __textureSizeValue:Array<Float> = [0, 0];
+	#if sys
+	@:noCompletion private static var __novaPerfTrace:Bool = Sys.getEnv("NOVAGC_PERF_TRACE") != null;
+	@:noCompletion private static var __novaPerfWindowStart:Float = 0.0;
+	@:noCompletion private static var __novaPerfCount:Int = 0;
+	@:noCompletion private static var __novaPerfTotal:Float = 0.0;
+	@:noCompletion private static var __novaPerfSetup:Float = 0.0;
+	@:noCompletion private static var __novaPerfDrawable:Float = 0.0;
+	@:noCompletion private static var __novaPerfPresent:Float = 0.0;
+	@:noCompletion private static var __novaPerfMax:Float = 0.0;
+	#end
 
 	/**
 		The current OpenGL render context
@@ -484,7 +494,14 @@ class OpenGLRenderer extends DisplayObjectRenderer
 			if (__currentShader.__hasColorTransform != null) __currentShader.__hasColorTransform.value = null;
 			if (__currentShader.__position != null) __currentShader.__position.value = null;
 			if (__currentShader.__matrix != null) __currentShader.__matrix.value = null;
-			__currentShader.__clearUseArray();
+			// Core render paths only enable these five array-backed attributes.
+			// Reset them directly so every Graphics batch does not scan all custom
+			// shader parameter arrays and create another precise root scope.
+			if (__currentShader.__position != null) __currentShader.__position.__useArray = false;
+			if (__currentShader.__textureCoord != null) __currentShader.__textureCoord.__useArray = false;
+			if (__currentShader.__alpha != null) __currentShader.__alpha.__useArray = false;
+			if (__currentShader.__colorMultiplier != null) __currentShader.__colorMultiplier.__useArray = false;
+			if (__currentShader.__colorOffset != null) __currentShader.__colorOffset.__useArray = false;
 		}
 	}
 
@@ -515,19 +532,32 @@ class OpenGLRenderer extends DisplayObjectRenderer
 			_matrix.ty = Math.round(_matrix.ty);
 		}
 
-		__matrix.identity();
-		__matrix[0] = _matrix.a;
-		__matrix[1] = _matrix.b;
-		__matrix[4] = _matrix.c;
-		__matrix[5] = _matrix.d;
-		__matrix[12] = _matrix.tx;
-		__matrix[13] = _matrix.ty;
-		__matrix.append(__flipped ? __projectionFlipped : __projection);
+		// The renderer projection is always the orthographic matrix created in
+		// __resize. Building a temporary Matrix4 used to perform dozens of
+		// individual Float32Array reads/writes here. On a moving collector each
+		// scalar access has to pin the backing byte array, which dominated complex
+		// UI pages. Multiply the 2D transform by that sparse projection directly.
+		var projectionWidth = __displayWidth + __offsetX * 2;
+		var projectionHeight = __displayHeight + __offsetY * 2;
+		var projectionX = 2.0 / projectionWidth;
+		var projectionY = (__flipped ? -2.0 : 2.0) / projectionHeight;
 
-		for (i in 0...16)
-		{
-			__values[i] = __matrix[i];
-		}
+		__values[0] = _matrix.a * projectionX;
+		__values[1] = _matrix.b * projectionY;
+		__values[2] = 0;
+		__values[3] = 0;
+		__values[4] = _matrix.c * projectionX;
+		__values[5] = _matrix.d * projectionY;
+		__values[6] = 0;
+		__values[7] = 0;
+		__values[8] = 0;
+		__values[9] = 0;
+		__values[10] = -0.001;
+		__values[11] = 0;
+		__values[12] = _matrix.tx * projectionX - 1;
+		__values[13] = _matrix.ty * projectionY + (__flipped ? 1 : -1);
+		__values[14] = 0;
+		__values[15] = 1;
 
 		Matrix.__pool.release(_matrix);
 
@@ -752,6 +782,11 @@ class OpenGLRenderer extends DisplayObjectRenderer
 
 	@:noCompletion private override function __render(object:IBitmapDrawable):Void
 	{
+		#if sys
+		var __novaStarted = __novaPerfTrace ? haxe.Timer.stamp() : 0.0;
+		var __novaBeforeDrawable = 0.0;
+		var __novaAfterDrawable = 0.0;
+		#end
 		__context3D.setColorMask(true, true, true, true);
 		__context3D.setCulling(NONE);
 		__context3D.setDepthTest(false, ALWAYS);
@@ -780,7 +815,13 @@ class OpenGLRenderer extends DisplayObjectRenderer
 
 			__upscaled = (__worldTransform.a != 1 || __worldTransform.d != 1);
 
+			#if sys
+			if (__novaPerfTrace) __novaBeforeDrawable = haxe.Timer.stamp();
+			#end
 			__renderDrawable(object);
+			#if sys
+			if (__novaPerfTrace) __novaAfterDrawable = haxe.Timer.stamp();
+			#end
 
 			// TODO: Handle this in Context3D as a viewport?
 
@@ -859,23 +900,70 @@ class OpenGLRenderer extends DisplayObjectRenderer
 			object.__mask = null;
 			object.__scrollRect = null;
 
+			#if sys
+			if (__novaPerfTrace) __novaBeforeDrawable = haxe.Timer.stamp();
+			#end
 			__renderDrawable(object);
+			#if sys
+			if (__novaPerfTrace) __novaAfterDrawable = haxe.Timer.stamp();
+			#end
 
 			object.__mask = cacheMask;
 			object.__scrollRect = cacheScrollRect;
 		}
 
 		__context3D.present();
+		#if sys
+		if (__novaPerfTrace)
+		{
+			var __novaEnded = haxe.Timer.stamp();
+			var __novaTotal = __novaEnded - __novaStarted;
+			var __novaSetup = __novaBeforeDrawable - __novaStarted;
+			var __novaDrawable = __novaAfterDrawable - __novaBeforeDrawable;
+			var __novaPresent = __novaEnded - __novaAfterDrawable;
+			if (__novaPerfWindowStart == 0.0) __novaPerfWindowStart = __novaStarted;
+			__novaPerfCount++;
+			__novaPerfTotal += __novaTotal;
+			__novaPerfSetup += __novaSetup;
+			__novaPerfDrawable += __novaDrawable;
+			__novaPerfPresent += __novaPresent;
+			if (__novaTotal > __novaPerfMax) __novaPerfMax = __novaTotal;
+			if (__novaEnded - __novaPerfWindowStart >= 1.0)
+			{
+				var __novaScale = 1000000.0 / __novaPerfCount;
+				Sys.println('perf:OpenGLRenderer.avg frames=$__novaPerfCount total_us=${Math.round(__novaPerfTotal * __novaScale)} setup_us=${Math.round(__novaPerfSetup * __novaScale)} drawable_us=${Math.round(__novaPerfDrawable * __novaScale)} present_us=${Math.round(__novaPerfPresent * __novaScale)} max_us=${Math.round(__novaPerfMax * 1000000)}');
+				__novaPerfWindowStart = __novaEnded;
+				__novaPerfCount = 0;
+				__novaPerfTotal = __novaPerfSetup = __novaPerfDrawable = __novaPerfPresent = __novaPerfMax = 0.0;
+			}
+		}
+		#end
 	}
 
 	@:noCompletion private function __renderDrawable(object:IBitmapDrawable):Void
 	{
 		if (object == null) return;
 
+		// IBitmapDrawable fields are dynamic at the generated C++ ABI. Walking
+		// DisplayObject.__Field (and its long strcmp chain) once for every child
+		// dominated simple scenes. BitmapData is the only non-DisplayObject
+		// implementation, so split it once at the public render boundary and use
+		// direct typed field access throughout the display list.
+		if (Std.isOfType(object, BitmapData))
+		{
+			Context3DBitmapData.renderDrawable(cast object, this);
+			return;
+		}
+
+		__renderDisplayObject(cast object);
+	}
+
+	@:noCompletion private function __renderDisplayObject(object:DisplayObject):Void
+	{
+		if (object == null) return;
+
 		switch (object.__drawableType)
 		{
-			case BITMAP_DATA:
-				Context3DBitmapData.renderDrawable(cast object, this);
 			case STAGE, SPRITE:
 				Context3DDisplayObjectContainer.renderDrawable(cast object, this);
 			case BITMAP:
@@ -898,10 +986,21 @@ class OpenGLRenderer extends DisplayObjectRenderer
 	{
 		if (object == null) return;
 
+		if (Std.isOfType(object, BitmapData))
+		{
+			Context3DBitmapData.renderDrawableMask(cast object, this);
+			return;
+		}
+
+		__renderDisplayObjectMask(cast object);
+	}
+
+	@:noCompletion private function __renderDisplayObjectMask(object:DisplayObject):Void
+	{
+		if (object == null) return;
+
 		switch (object.__drawableType)
 		{
-			case BITMAP_DATA:
-				Context3DBitmapData.renderDrawableMask(cast object, this);
 			case STAGE, SPRITE:
 				Context3DDisplayObjectContainer.renderDrawableMask(cast object, this);
 			case BITMAP:

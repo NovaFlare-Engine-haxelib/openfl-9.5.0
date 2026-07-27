@@ -12,7 +12,7 @@ class ObjectPool<T>
 
 	@:noCompletion private var __inactiveObject0:T;
 	@:noCompletion private var __inactiveObject1:T;
-	@:noCompletion private var __inactiveObjectList:List<T>;
+	@:noCompletion private var __inactiveObjectList:Array<T>;
 	@:noCompletion private var __pool:Map<T, Bool>;
 	@:noCompletion private var __size:Null<Int>;
 
@@ -25,7 +25,7 @@ class ObjectPool<T>
 
 		__inactiveObject0 = null;
 		__inactiveObject1 = null;
-		__inactiveObjectList = new List<T>();
+		__inactiveObjectList = [];
 
 		if (create != null)
 		{
@@ -161,7 +161,7 @@ class ObjectPool<T>
 		}
 		else
 		{
-			__inactiveObjectList.add(object);
+			__inactiveObjectList.push(object);
 		}
 
 		inactiveObjects++;
@@ -230,14 +230,12 @@ class ObjectPool<T>
 
 		if (count == 0 || inactiveObjects == 0) return;
 
-		for (object in __inactiveObjectList)
+		while (count > 0 && inactiveObjects > 0 && __inactiveObjectList.length > 0)
 		{
+			var object = __inactiveObjectList.pop();
 			__pool.remove(object);
-			__inactiveObjectList.remove(object);
 			inactiveObjects--;
 			count--;
-
-			if (count == 0 || inactiveObjects == 0) return;
 		}
 	}
 
@@ -273,7 +271,7 @@ class ObjectPool<T>
 					if (object != null)
 					{
 						__pool.set(object, false);
-						__inactiveObjectList.add(object);
+						__inactiveObjectList.push(object);
 						inactiveObjects++;
 					}
 					else

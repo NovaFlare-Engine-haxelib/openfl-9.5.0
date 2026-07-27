@@ -79,7 +79,11 @@ import js.html.CanvasRenderingContext2D;
 	@:noCompletion private var __triangleIndexBuffer:IndexBuffer3D;
 	@:noCompletion private var __triangleIndexBufferCount:Int;
 	@:noCompletion private var __triangleIndexBufferData:UInt16Array;
-	@:noCompletion private var __usedShaderBuffers:List<ShaderBuffer>;
+	// This collection is emptied every frame.  List.add allocates a managed
+	// ListNode for every shader buffer use, so a busy Flixel scene can create
+	// tens of thousands of nodes per nursery cohort.  Retain an Array backing
+	// store and reuse its capacity instead.
+	@:noCompletion private var __usedShaderBuffers:Array<ShaderBuffer>;
 	@:noCompletion private var __vertexBuffer:VertexBuffer3D;
 	@:noCompletion private var __vertexBufferCount:Int;
 	@:noCompletion private var __vertexBufferCountUVT:Int;
@@ -110,7 +114,7 @@ import js.html.CanvasRenderingContext2D;
 		__positionX = 0;
 		__positionY = 0;
 		__renderTransform = new Matrix();
-		__usedShaderBuffers = new List<ShaderBuffer>();
+		__usedShaderBuffers = [];
 		__worldTransform = new Matrix();
 		__width = 0;
 		__height = 0;
@@ -394,7 +398,7 @@ import js.html.CanvasRenderingContext2D;
 		{
 			#if lime
 			var shaderBuffer = __shaderBufferPool.get();
-			__usedShaderBuffers.add(shaderBuffer);
+			__usedShaderBuffers.push(shaderBuffer);
 			shaderBuffer.update(cast shader);
 
 			__commands.beginShaderFill(shaderBuffer);
@@ -416,7 +420,7 @@ import js.html.CanvasRenderingContext2D;
 		}
 		#end
 
-		__usedShaderBuffers.clear();
+		__usedShaderBuffers.resize(0);
 		__commands.clear();
 		__strokePadding = 0;
 
