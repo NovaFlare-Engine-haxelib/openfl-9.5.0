@@ -33,8 +33,6 @@ import openfl.ui.MouseCursor;
 
 #if lime
 import lime.app.Application;
-import lime.system.Display;
-import lime.system.System;
 import lime.app.IModule;
 import lime.graphics.RenderContext;
 import lime.graphics.RenderContextType;
@@ -2885,8 +2883,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		if (__desiredLogicalWidth > 0 && __desiredLogicalHeight > 0)
 		{
 			#if mobile
-			var display:Display = System.getDisplay(0);
-			calcScreen(display.bounds.width, display.bounds.height, __desiredLogicalWidth, __desiredLogicalHeight);
+			calcScreen(this.window.width * this.window.scale, this.window.height * this.window.scale, __desiredLogicalWidth, __desiredLogicalHeight);
 			#else
 			calcScreen(this.window.width, this.window.height, __desiredLogicalWidth, __desiredLogicalHeight);
 			#end
@@ -3855,8 +3852,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		try
 		{
 		#if mobile
-		var display:Display = System.getDisplay(0);
-		calcScreen(display.bounds.width, display.bounds.height, width, height);
+		calcScreen(this.window.width * this.window.scale, this.window.height * this.window.scale, width, height);
 		#else
 		calcScreen(this.window.width, this.window.height, width, height);
 		#end
