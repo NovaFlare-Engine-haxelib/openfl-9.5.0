@@ -3872,7 +3872,11 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		#if mobile
 		var ratioX = stageWidth / wantWidth;
 		var ratioY = stageHeight / wantHeight;
-		var ratio = Math.max(ratioX, ratioY);
+		// iOS previously used a cover ratio here. On wide landscape displays that
+		// reduced the logical height and enlarged the entire Stage, cropping and
+		// offsetting the game view. Expand the visible logical width instead, as
+		// the pre-custom-scaling mobile bootstrap did. Keep Android unchanged.
+		var ratio = #if ios Math.min(ratioX, ratioY) #else Math.max(ratioX, ratioY) #end;
 		__logicalWidth = Math.ceil(stageWidth / ratio);
 		__logicalHeight = Math.ceil(stageHeight / ratio);
 		#else
