@@ -3799,7 +3799,14 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		{
 			if (__logicalWidth > 0 && __logicalHeight > 0 && scaleMode == NO_SCALE)
 			{
+				#if openfl_dpi_aware
 				context3D.configureBackBuffer(windowWidth, windowHeight, 0, true, true, true);
+				#else
+				// configureBackBuffer() applies window.scale itself when best
+				// resolution is requested. windowWidth/windowHeight are already
+				// drawable pixels, so passing them here scales Retina buffers twice.
+				context3D.configureBackBuffer(window.width, window.height, 0, true, true, true);
+				#end
 			}
 			else
 			{
