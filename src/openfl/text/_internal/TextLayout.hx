@@ -49,7 +49,7 @@ class TextLayout
 	private static inline var FT_LOAD_BITMAP_METRICS_ONLY:Int = 65536;
 	// define FT_LOAD_TARGET_( x )   ( (FT_Int32)( (x) & 15 ) << 16 )
 	private static inline var FT_LOAD_TARGET_NORMAL:Int = (0 & 15) << 16; // FT_LOAD_TARGET_( FT_RENDER_MODE_NORMAL )
-	private static inline var FT_LOAD_TARGET_LIGHT:Int = ((((0 & 15) << 16) & 15) << 16); //  FT_LOAD_TARGET_( FT_RENDER_MODE_LIGHT  )
+	private static inline var FT_LOAD_TARGET_LIGHT:Int = (1 & 15) << 16; // FT_LOAD_TARGET_( FT_RENDER_MODE_LIGHT )
 
 	// private static inline var FT_LOAD_TARGET_MONO    FT_LOAD_TARGET_( FT_RENDER_MODE_MONO   )
 	// private static inline var FT_LOAD_TARGET_LCD     FT_LOAD_TARGET_( FT_RENDER_MODE_LCD    )
