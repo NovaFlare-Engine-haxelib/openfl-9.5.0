@@ -38,6 +38,8 @@ import lime.math.Vector2;
 class Point
 {
 	@:noCompletion private static var __pool:ObjectPool<Point> = new ObjectPool<Point>(function() return new Point(), function(p) p.setTo(0, 0));
+	public static var pool(get, never):ObjectPool<Point>;
+	@:noCompletion private inline static function get_pool():ObjectPool<Point> return __pool;
 	#if lime
 	@:noCompletion private static var __limeVector2:Vector2;
 	#end

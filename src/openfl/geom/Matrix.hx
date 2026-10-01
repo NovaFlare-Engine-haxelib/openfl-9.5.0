@@ -78,6 +78,8 @@ class Matrix
 {
 	@:noCompletion private static var __identity:Matrix = new Matrix();
 	@:noCompletion private static var __pool:ObjectPool<Matrix> = new ObjectPool<Matrix>(function() return new Matrix(), function(m) m.identity());
+	public static var pool(get, never):ObjectPool<Matrix>;
+	@:noCompletion private inline static function get_pool():ObjectPool<Matrix> return __pool;
 	#if lime
 	@:noCompletion private static var __matrix3:Matrix3 = new Matrix3();
 	#end

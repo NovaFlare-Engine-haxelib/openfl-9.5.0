@@ -64,6 +64,8 @@ class Rectangle
 	#end
 	@:noCompletion private static var __pool:ObjectPool<Rectangle> = new ObjectPool<Rectangle>(function() return new Rectangle(),
 		function(r) r.setTo(0, 0, 0, 0));
+	public static var pool(get, never):ObjectPool<Rectangle>;
+	@:noCompletion private inline static function get_pool():ObjectPool<Rectangle> return __pool;
 
 	/**
 		The sum of the `y` and `height` properties.
