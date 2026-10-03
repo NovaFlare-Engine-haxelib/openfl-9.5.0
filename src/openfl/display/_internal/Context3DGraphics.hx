@@ -597,7 +597,7 @@ class Context3DGraphics
 				case MOVE_TO:
 					data.skip(type);
 
-				case OVERRIDE_BLEND_MODE:
+				case OVERRIDE_BLEND_MODE, OVERRIDE_DEPTH_TEST:
 					data.skip(type);
 
 				default:

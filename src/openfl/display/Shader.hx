@@ -503,8 +503,8 @@ class Shader
 				+ "#endif\n\n";
 			#end
 
-			var vertex = __compatSource(glVertexSource,prefix,glVertexPragmas,glVertexExtensions);
-			var fragment = __compatSource(glFragmentSource,prefix,glFragmentPragmas,glFragmentExtensions);
+			var vertex = prefix + glVertexSource;
+			var fragment = prefix + glFragmentSource;
 
 			var id = vertex + fragment;
 

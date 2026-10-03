@@ -135,20 +135,6 @@ private function set_glVertexPragmas(value:Map<String,String>):Map<String,String
 private function set_glFragmentPragmas(value:Map<String,String>):Map<String,String> { __glSourceDirty=true; return glFragmentPragmas=value; }
   };
   for (field in compatibility.fields) if (!fields.exists(f -> f.name == field.name)) fields.push(field);
-  // Preserve NF's compile cache, error handling and mobile conversion. Only assemble source headers.
-  function rewrite(expr:Expr):Expr {
-   switch (expr.expr) {
-    case EBinop(OpAdd, {expr:EConst(CIdent("prefix"))}, {expr:EConst(CIdent(source))})
-      if (source == "glVertexSource" || source == "glFragmentSource"):
-     var stage=source == "glVertexSource" ? "glVertex" : "glFragment";
-     return Context.parse('__compatSource('+source+', prefix, '+stage+'Pragmas, '+stage+'Extensions)', expr.pos);
-    default: return ExprTools.map(expr,rewrite);
-   }
-  }
-  for (field in fields) if (field.name == "__initGL") switch (field.kind) {
-   case FFun(fn): if (fn.expr != null) fn.expr=rewrite(fn.expr);
-   default:
-  }
   return fields;
  }
 }

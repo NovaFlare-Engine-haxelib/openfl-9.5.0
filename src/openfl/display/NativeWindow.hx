@@ -226,9 +226,7 @@ class NativeWindow extends EventDispatcher
 		__window.onMinimize.add(window_onMinimize);
 		__window.onMaximize.add(window_onMaximize);
 		__window.onRestore.add(window_onRestore);
-		__window.onMouseDown.add((x,y,button)->{if(button==0) {__mouseButtonDown=true;__dragOffsetX=x;__dragOffsetY=y;}});
- __window.onMouseUp.add((x,y,button)->{if(button==0) {__mouseButtonDown=false;__stopStartMove();}});
- __window.onClose.add(window_onClose);
+		__window.onClose.add(window_onClose);
 	}
 
 	/**
@@ -1233,8 +1231,7 @@ class NativeWindow extends EventDispatcher
 			var childWindow = __ownedWindows.pop();
 			childWindow.close();
 		}
-		__stopStartMove();
- __closed = true;
+		__closed = true;
 		__window.onFocusIn.remove(window_onFocusIn);
 		__window.onFocusOut.remove(window_onFocusOut);
 		__window.onResize.remove(window_onResize);
