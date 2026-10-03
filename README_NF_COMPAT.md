@@ -6,4 +6,6 @@ Origin extra Graphics buffers are an explicit fallback: addBuffer allocates an I
 
 Legacy Context3DTextureFormat numeric values are retained; new RGB/RGBA values have distinct IDs. Standalone users must use the shader/texture enums symbolically rather than donor-specific numeric IDs.
 
+The Lime include.xml installs an idempotent build macro for projects that override the original Shader/FlxRuntimeShader source files. It supplies only missing compatibility fields and preserves existing implementation logic. Direct haxe users with overrides can add the corresponding NFShaderCompat/NFRuntimeShaderCompat build metadata explicitly.
+
 Upstream licenses and contributor notices are preserved.

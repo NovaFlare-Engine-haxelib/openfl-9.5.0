@@ -155,4 +155,5 @@
 
 	<include haxelib="openfl-samples" if="create" />
 
+	<haxeflag name="--macro" value="addMetadata('@:build(openfl.utils._internal.NFShaderCompat.build())', 'openfl.display.Shader')" unless="flash || nme" />
 </extension>
