@@ -143,6 +143,36 @@ import openfl.Vector;
 		uploadFromTypedArray(__tempUInt16Array);
 		#end
 	}
+
+	public function uploadFromArray(data:Array<UInt>, startOffset:Int, count:Int):Void
+	{
+		#if lime
+		// TODO: Optimize more
+
+		if (data == null) return;
+		var gl = __context.gl;
+
+		var length = startOffset + count;
+		var existingUInt16Array = __tempUInt16Array;
+
+		if (__tempUInt16Array == null || __tempUInt16Array.length < count)
+		{
+			__tempUInt16Array = new UInt16Array(count);
+
+			if (existingUInt16Array != null)
+			{
+				__tempUInt16Array.set(existingUInt16Array);
+			}
+		}
+
+		for (i in startOffset...length)
+		{
+			__tempUInt16Array[i - startOffset] = data[i];
+		}
+
+		uploadFromTypedArray(__tempUInt16Array);
+		#end
+	}
 }
 #else
 typedef IndexBuffer3D = flash.display3D.IndexBuffer3D;

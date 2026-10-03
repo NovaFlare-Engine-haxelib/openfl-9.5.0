@@ -1,5 +1,7 @@
 package openfl.display;
 
+import openfl.display.Graphics;
+
 #if !flash
 import openfl.display._internal.IBitmapDrawableType;
 import openfl.display._internal.PerlinNoise;
@@ -3544,6 +3546,162 @@ class BitmapData implements IBitmapDrawable
 		}
 
 		__renderTransform.copyFrom(__worldTransform);
+	}
+
+	public static function fromContext(context:Context3D, width:Int, height:Int, fillColor:UInt = 0):BitmapData
+	{
+		if (context == null || context.gl == null) return null;
+
+		if (Graphics.maxTextureWidth != null && width > Graphics.maxTextureWidth) width = Graphics.maxTextureWidth;
+		if (Graphics.maxTextureHeight != null && height > Graphics.maxTextureHeight) height = Graphics.maxTextureHeight;
+
+		var bitmapData = new BitmapData(0, 0, true, 0);
+		bitmapData.__texture = context.createRectangleTexture(width, height, BGRA, false);
+		bitmapData.__textureContext = bitmapData.__texture.__textureContext;
+		bitmapData.__resize(bitmapData.__texture.__width, bitmapData.__texture.__height);
+		bitmapData.__texture.__getGLFramebuffer(true, 0, 0);
+		bitmapData.__isValid = true;
+		bitmapData.__fillRect(bitmapData.rect, fillColor, true);
+		bitmapData.readable = false;
+		return bitmapData;
+	}
+
+	public function resize(width:Int, height:Int):Void
+	{
+		if (this.width != width || this.height != height)
+		{
+			__resize(width, height);
+
+			if (__surface != null) __surface.flush();
+			if (image != null) image.resize(width, height);
+
+			if (__texture != null)
+			{
+				__texture.resize(width, height);
+
+				__framebufferContext = __textureContext;
+				__indexBufferContext = __textureContext;
+				__framebuffer = __texture.__glFramebuffer;
+				__stencilBuffer = __texture.__glStencilRenderbuffer;
+				__vertexBuffer = null;
+
+				getVertexBuffer(__texture.__context);
+			}
+		}
+	}
+
+	public function toHardware(?context:Context3D):Void
+	{
+		if (image != null)
+		{
+			if (context == null)
+			{
+				if (Lib.current.stage == null || Lib.current.stage.context3D == null) return;
+				context = Lib.current.stage.context3D;
+			}
+
+			if (__texture == null || __textureContext != context.__context)
+			{
+				__textureContext = context.__context;
+				__texture = context.createRectangleTexture(width, height, BGRA, false);
+			}
+
+			#if (js && html5)
+			ImageCanvasUtil.sync(image, false);
+			#end
+
+			if (__surface != null) __surface.flush();
+
+			#if (js && html5)
+			if (#if openfl_power_of_two true || #end (!TextureBase.__supportsBGRA && image.format != RGBA32))
+			{
+				image.format = RGBA32;
+				// image.buffer.premultiplied = true;
+				#if openfl_power_of_two
+				image.powerOfTwo = true;
+				#end
+			}
+			#else
+			if (#if openfl_power_of_two !image.powerOfTwo || #end (!image.premultiplied && image.transparent))
+			{
+				image.premultiplied = true;
+				#if openfl_power_of_two
+				image.powerOfTwo = true;
+				#end
+			}
+			#end
+
+			__texture.__uploadFromImage(image);
+			__textureVersion = image.version;
+			__textureWidth = image.buffer.width;
+			__textureHeight = image.buffer.height;
+			__surface = null;
+
+			readable = false;
+			image = null;
+		}
+	}
+
+	public function toReadable():Void
+	{
+		if (__texture == null || __texture.__glFramebuffer == null) return;
+
+		var context = __texture.__context;
+		if (context == null) return;
+
+		var gl = context.gl;
+		if (gl == null) return;
+
+		readable = true;
+		__textureContext = __texture.__textureContext;
+		__resize(__texture.__width, __texture.__height);
+
+		var buffer:ImageBuffer = image.buffer;
+		if (buffer == null || buffer.width != width || buffer.height != height || buffer.bitsPerPixel != 32)
+		{
+			buffer = new ImageBuffer(new UInt8Array(width * height * 4), width, height, 32);
+			#if (js && html5)
+			Reflect.setField(buffer, "format", lime.graphics.PixelFormat.RGBA32);
+			#elseif sys
+			Reflect.setField(buffer, "format", lime.graphics.PixelFormat.BGRA32);
+			Reflect.setField(buffer, "premultiplied", true);
+			#end
+		}
+
+		if (image == null)
+		{
+			image = new Image(buffer, 0, 0, width, height);
+		}
+		else
+		{
+			image.offsetX = 0;
+			image.offsetY = 0;
+			image.width = width;
+			image.height = height;
+			image.type = DATA;
+			image.buffer = buffer;
+			image.version = __textureVersion;
+		}
+
+		var cacheRTT = context.__state.renderToTexture;
+		var cacheRTTDepthStencil = context.__state.renderToTextureDepthStencil;
+		var cacheRTTAntiAlias = context.__state.renderToTextureAntiAlias;
+		var cacheRTTSurfaceSelector = context.__state.renderToTextureSurfaceSelector;
+
+		context.setRenderToTexture(__texture);
+		context.__flushGLFramebuffer();
+		context.__flushGLViewport();
+
+		gl.readPixels(0, 0, width, height, __texture.__format, gl.UNSIGNED_BYTE, buffer.data);
+
+		if (cacheRTT != null)
+		{
+			context.setRenderToTexture(cacheRTT, cacheRTTDepthStencil, cacheRTTAntiAlias, cacheRTTSurfaceSelector);
+		}
+		else
+		{
+			context.setRenderToBackBuffer();
+		}
 	}
 }
 #else

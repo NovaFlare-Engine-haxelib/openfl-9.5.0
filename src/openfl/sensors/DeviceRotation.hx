@@ -1,5 +1,10 @@
 package openfl.sensors;
 
+import haxe.Timer;
+
+import openfl.events.DeviceRotationEvent;
+
+
 #if (!flash && sys && (!flash_doc_gen || air_doc_gen))
 import openfl.errors.IllegalOperationError;
 
@@ -28,7 +33,7 @@ import openfl.errors.IllegalOperationError;
 	[AIR Profile Support](https://help.adobe.com/en_US/air/build/WS144092a96ffef7cc16ddeea2126bb46b82f-8000.html)
 	for more information regarding API support across multiple profiles.
 **/
-class DeviceRotation
+class DeviceRotation extends openfl.events.EventDispatcher
 {
 	/**
 		The isSupported property is set to `true` if the accelerometer and
@@ -54,7 +59,7 @@ class DeviceRotation
 	**/
 	public function new()
 	{
-		throw new IllegalOperationError("Not supported");
+		super();
 	}
 
 	/**
@@ -68,6 +73,31 @@ class DeviceRotation
 		application receives updates based on the device's default interval.
 	**/
 	public function setRequestedUpdateInterval(interval:Float):Void {}
+
+	override public function addEventListener(type:String, listener:Dynamic->Void, useCapture:Bool = false, priority:Int = 0,
+			useWeakReference:Bool = false):Void
+	{
+		super.addEventListener(type, listener, useCapture, priority, useWeakReference);
+		update();
+	}
+
+	@:noCompletion private function update():Void
+	{
+		var event = new DeviceRotationEvent(DeviceRotationEvent.UPDATE);
+
+		event.timestamp = Timer.stamp();
+		event.pitch = currentPitch;
+		event.roll = currentRoll;
+		event.yaw = currentYaw;
+
+		dispatchEvent(event);
+	}
+
+	@:noCompletion private static var currentPitch:Float = 0.0;
+
+	@:noCompletion private static var currentRoll:Float = 0.0;
+
+	@:noCompletion private static var currentYaw:Float = 0.0;
 }
 #else
 #if air

@@ -739,6 +739,10 @@ class MouseEvent extends Event
 
 		__updateAfterEventFlag = false;
 	}
+
+	public var deltaX:Float;
+
+	public var deltaY:Float;
 }
 #else
 typedef MouseEvent = flash.events.MouseEvent;

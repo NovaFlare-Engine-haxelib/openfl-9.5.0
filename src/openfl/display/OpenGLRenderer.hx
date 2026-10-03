@@ -1209,6 +1209,9 @@ class OpenGLRenderer extends DisplayObjectRenderer
 			__currentShader.__updateFromBuffer(__currentShaderBuffer, bufferOffset);
 		}
 	}
+
+@:noCompletion public static var __complexBlendsSupported:Bool=false;
+ @:noCompletion public static var __standardDerivativesSupported:Bool=false;
 }
 #else
 typedef OpenGLRenderer = Dynamic;

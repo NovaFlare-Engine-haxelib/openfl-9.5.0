@@ -1,5 +1,7 @@
 package openfl.display;
 
+import openfl.display3D.Context3DCompareMode;
+
 #if !flash
 import openfl.display._internal.CairoGraphics;
 import openfl.display._internal.CanvasGraphics;
@@ -2096,6 +2098,17 @@ import js.html.CanvasRenderingContext2D;
 
 		return __dirty = value;
 	}
+
+	public function overrideDepthTest(depthTest:Bool = false, compareMode:Context3DCompareMode):Void
+	{
+		if (compareMode == null) compareMode = ALWAYS;
+		__commands.overrideDepthTest(depthTest, compareMode);
+	}
+
+private var __compatBufferFormats:Array<openfl.display3D.Context3DTextureFormat>=[];
+ public function addBuffer(format:openfl.display3D.Context3DTextureFormat):Int {__compatBufferFormats.push(format); return __compatBufferFormats.length;}
+ public function setBufferFilters(index:Int,filters:Array<openfl.filters.BitmapFilter>,resolutionScale:Float=1.0,updateInterval:Float=0):Void {}
+ public function getBuffer(index:Int):BitmapData return null;
 }
 #else
 typedef Graphics = flash.display.Graphics;

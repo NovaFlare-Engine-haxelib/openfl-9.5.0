@@ -51,7 +51,10 @@ import openfl.utils._internal.NullUtils;
 			case "compressed": COMPRESSED;
 			case "compressedAlpha": COMPRESSED_ALPHA;
 			case "rgbaHalfFloat": RGBA_HALF_FLOAT;
-			default: null;
+			case "rgb": RGB;
+ case "rgba": RGBA;
+ case "r": R;
+ default: null;
 		}
 	}
 
@@ -65,7 +68,10 @@ import openfl.utils._internal.NullUtils;
 			case Context3DTextureFormat.COMPRESSED: "compressed";
 			case Context3DTextureFormat.COMPRESSED_ALPHA: "compressedAlpha";
 			case Context3DTextureFormat.RGBA_HALF_FLOAT: "rgbaHalfFloat";
-			default: null;
+			case Context3DTextureFormat.RGB: "rgb";
+ case Context3DTextureFormat.RGBA: "rgba";
+ case Context3DTextureFormat.R: "r";
+ default: null;
 		}
 	}
 
@@ -82,6 +88,12 @@ import openfl.utils._internal.NullUtils;
 		return !equals(a, b);
 	}
 	#end
+
+	public var RGB = 7;
+
+	public var RGBA = 8;
+
+	public var R = 6;
 }
 #else
 @SuppressWarnings("checkstyle:FieldDocComment") #if (haxe_ver >= 4.0) enum #else @:enum #end abstract Context3DTextureFormat(String) from String to String
@@ -92,6 +104,12 @@ import openfl.utils._internal.NullUtils;
 	public var COMPRESSED = "compressed";
 	public var COMPRESSED_ALPHA = "compressedAlpha";
 	public var RGBA_HALF_FLOAT = "rgbaHalfFloat";
+
+ public var RGB="rgb";
+
+ public var RGBA="rgba";
+
+ public var R="r";
 }
 #end
 #else

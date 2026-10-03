@@ -126,6 +126,27 @@ import lime.ui.Gamepad;
 	{
 		return __controls.length;
 	}
+
+	public function getLimeGamepad():Gamepad
+	{
+		return __gamepad;
+	}
+
+	public function rumble(lowFrequency:Float, highFrequency:Float, duration:Int):Void
+	{
+		if (__gamepad != null)
+		{
+			__gamepad.rumble(lowFrequency, highFrequency, duration);
+		}
+	}
+
+	public function setLED(red:Int, green:Int, blue:Int):Void
+	{
+		if (__gamepad != null)
+		{
+			__gamepad.setLED(red, green, blue);
+		}
+	}
 }
 #else
 typedef GameInputDevice = flash.ui.GameInputDevice;

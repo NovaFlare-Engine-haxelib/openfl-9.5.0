@@ -200,7 +200,28 @@ package openfl.display;
 			case "matrix4x2": MATRIX4X2;
 			case "matrix4x3": MATRIX4X3;
 			case "matrix4x4": MATRIX4X4;
-			default: null;
+			case "bool[]": BOOLV;
+ case "bool2[]": BOOL2V;
+ case "bool3[]": BOOL3V;
+ case "bool4[]": BOOL4V;
+ case "float[]": FLOATV;
+ case "float2[]": FLOAT2V;
+ case "float3[]": FLOAT3V;
+ case "float4[]": FLOAT4V;
+ case "int[]": INTV;
+ case "int2[]": INT2V;
+ case "int3[]": INT3V;
+ case "int4[]": INT4V;
+ case "matrix2x2[]": MATRIX2X2V;
+ case "matrix2x3[]": MATRIX2X3V;
+ case "matrix2x4[]": MATRIX2X4V;
+ case "matrix3x2[]": MATRIX3X2V;
+ case "matrix3x3[]": MATRIX3X3V;
+ case "matrix3x4[]": MATRIX3X4V;
+ case "matrix4x2[]": MATRIX4X2V;
+ case "matrix4x3[]": MATRIX4X3V;
+ case "matrix4x4[]": MATRIX4X4V;
+ default: null;
 		}
 	}
 
@@ -229,9 +250,72 @@ package openfl.display;
 			case ShaderParameterType.MATRIX4X2: "matrix4x2";
 			case ShaderParameterType.MATRIX4X3: "matrix4x3";
 			case ShaderParameterType.MATRIX4X4: "matrix4x4";
-			default: null;
+			case ShaderParameterType.BOOLV: "bool[]";
+ case ShaderParameterType.BOOL2V: "bool2[]";
+ case ShaderParameterType.BOOL3V: "bool3[]";
+ case ShaderParameterType.BOOL4V: "bool4[]";
+ case ShaderParameterType.FLOATV: "float[]";
+ case ShaderParameterType.FLOAT2V: "float2[]";
+ case ShaderParameterType.FLOAT3V: "float3[]";
+ case ShaderParameterType.FLOAT4V: "float4[]";
+ case ShaderParameterType.INTV: "int[]";
+ case ShaderParameterType.INT2V: "int2[]";
+ case ShaderParameterType.INT3V: "int3[]";
+ case ShaderParameterType.INT4V: "int4[]";
+ case ShaderParameterType.MATRIX2X2V: "matrix2x2[]";
+ case ShaderParameterType.MATRIX2X3V: "matrix2x3[]";
+ case ShaderParameterType.MATRIX2X4V: "matrix2x4[]";
+ case ShaderParameterType.MATRIX3X2V: "matrix3x2[]";
+ case ShaderParameterType.MATRIX3X3V: "matrix3x3[]";
+ case ShaderParameterType.MATRIX3X4V: "matrix3x4[]";
+ case ShaderParameterType.MATRIX4X2V: "matrix4x2[]";
+ case ShaderParameterType.MATRIX4X3V: "matrix4x3[]";
+ case ShaderParameterType.MATRIX4X4V: "matrix4x4[]";
+ default: null;
 		}
 	}
+
+	public var BOOLV = 21;
+
+	public var BOOL2V = 22;
+
+	public var BOOL3V = 23;
+
+	public var BOOL4V = 24;
+
+	public var FLOATV = 25;
+
+	public var FLOAT2V = 26;
+
+	public var FLOAT3V = 27;
+
+	public var FLOAT4V = 28;
+
+	public var INTV = 29;
+
+	public var INT2V = 30;
+
+	public var INT3V = 31;
+
+	public var INT4V = 32;
+
+	public var MATRIX2X2V = 33;
+
+	public var MATRIX2X3V = 34;
+
+	public var MATRIX2X4V = 35;
+
+	public var MATRIX3X2V = 36;
+
+	public var MATRIX3X3V = 37;
+
+	public var MATRIX3X4V = 38;
+
+	public var MATRIX4X2V = 39;
+
+	public var MATRIX4X3V = 40;
+
+	public var MATRIX4X4V = 41;
 }
 #else
 @SuppressWarnings("checkstyle:FieldDocComment") #if (haxe_ver >= 4.0) enum #else @:enum #end abstract ShaderParameterType(String) from String to String
@@ -257,6 +341,48 @@ package openfl.display;
 	public var MATRIX4X2 = "matrix4x2";
 	public var MATRIX4X3 = "matrix4x3";
 	public var MATRIX4X4 = "matrix4x4";
+
+ public var BOOLV="bool[]";
+
+ public var BOOL2V="bool2[]";
+
+ public var BOOL3V="bool3[]";
+
+ public var BOOL4V="bool4[]";
+
+ public var FLOATV="float[]";
+
+ public var FLOAT2V="float2[]";
+
+ public var FLOAT3V="float3[]";
+
+ public var FLOAT4V="float4[]";
+
+ public var INTV="int[]";
+
+ public var INT2V="int2[]";
+
+ public var INT3V="int3[]";
+
+ public var INT4V="int4[]";
+
+ public var MATRIX2X2V="matrix2x2[]";
+
+ public var MATRIX2X3V="matrix2x3[]";
+
+ public var MATRIX2X4V="matrix2x4[]";
+
+ public var MATRIX3X2V="matrix3x2[]";
+
+ public var MATRIX3X3V="matrix3x3[]";
+
+ public var MATRIX3X4V="matrix3x4[]";
+
+ public var MATRIX4X2V="matrix4x2[]";
+
+ public var MATRIX4X3V="matrix4x3[]";
+
+ public var MATRIX4X4V="matrix4x4[]";
 }
 #end
 #else

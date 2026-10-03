@@ -1,5 +1,18 @@
 package openfl.display3D;
 
+
+import lime.graphics.opengl.GLBuffer;
+import lime.graphics.opengl.GLFramebuffer;
+import lime.graphics.opengl.GLTexture;
+import lime.utils.Float32Array;
+import lime.utils.UInt16Array;
+import lime.utils.UInt8Array;
+import openfl.display3D.textures.MultiBufferTexture;
+import openfl.display3D.textures.S3TCTexture;
+
+import openfl.display3D.textures.ASTCTexture;
+
+
 #if !flash
 import openfl.display3D._internal.Context3DState;
 import openfl.display3D._internal.GLBuffer;
@@ -2779,6 +2792,75 @@ import lime.math.Vector2;
 			}
 		}
 		return 0;
+	}
+
+	public function isASTCSupported():Bool
+	{
+		if (ASTCTexture.__astcCompressedTexturesSupported == null)
+		{
+			ASTCTexture.__astcCompressedTexturesSupported = gl.getSupportedExtensions().contains("KHR_texture_compression_astc_ldr");
+		}
+
+		return ASTCTexture.__astcCompressedTexturesSupported == true;
+	}
+
+	public function createASTCTexture(data:ByteArray):ASTCTexture
+	{
+		return new ASTCTexture(this, data);
+	}
+
+	public function setProgramConstantsFromArray(programType:Context3DProgramType, firstRegister:Int, data:Array<Float>, numRegisters:Int = -1):Void
+	{
+		if (numRegisters == 0) return;
+
+		if (__state.program != null && __state.program.__format == GLSL) {}
+		else
+		{
+			if (numRegisters == -1)
+			{
+				numRegisters = (data.length >> 2);
+			}
+
+			var isVertex = (programType == VERTEX);
+			var dest = isVertex ? __vertexConstants : __fragmentConstants;
+			var source = data;
+
+			var sourceIndex = 0;
+			var destIndex = firstRegister * 4;
+
+			for (i in 0...numRegisters)
+			{
+				dest[destIndex++] = source[sourceIndex++];
+				dest[destIndex++] = source[sourceIndex++];
+				dest[destIndex++] = source[sourceIndex++];
+				dest[destIndex++] = source[sourceIndex++];
+			}
+
+			if (__state.program != null)
+			{
+				__state.program.__markDirty(isVertex, firstRegister, numRegisters);
+			}
+		}
+	}
+
+	public function createMultiBufferTexture(width:Int, height:Int, formats:Array<Context3DTextureFormat>):MultiBufferTexture
+	{
+		return new MultiBufferTexture(this, width, height, formats);
+	}
+
+	public function isS3TCSupported():Bool
+	{
+		if (S3TCTexture.__s3tcCompressedTexturesSupported == null)
+		{
+			S3TCTexture.__s3tcCompressedTexturesSupported = gl.getSupportedExtensions().contains("EXT_texture_compression_s3tc");
+		}
+
+		return S3TCTexture.__s3tcCompressedTexturesSupported == true;
+	}
+
+	public function createS3TCTexture(data:ByteArray):S3TCTexture
+	{
+		return new S3TCTexture(this, data);
 	}
 }
 #else

@@ -942,4 +942,8 @@ class Assets
 	{
 		dispatchEvent(new Event(Event.CHANGE));
 	}
+
+	public static var allowCompressedTextures:Bool = true;
+
+	public static var allowHardwareTextures:Bool = true;
 }

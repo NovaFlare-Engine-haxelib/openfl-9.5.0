@@ -3789,6 +3789,46 @@ class TextField extends InteractiveObject
 		// TODO: Dispatch change if at max chars?
 		dispatchEvent(new Event(Event.CHANGE, true));
 	}
+
+	public var selectionTextColor(get, set):Int;
+
+	public var selectionHighlightColor(get, set):Int;
+
+	@:noCompletion private function get_selectionTextColor():Int
+	{
+		return __selectionTextColor;
+	}
+
+	@:noCompletion private function set_selectionTextColor(value:Int):Int
+	{
+		if (value != __selectionTextColor)
+		{
+			__dirty = true;
+			__setRenderDirty();
+		}
+
+		return __selectionTextColor = value;
+	}
+
+	@:noCompletion private function get_selectionHighlightColor():Int
+	{
+		return __selectionHighlightColor;
+	}
+
+	@:noCompletion private function set_selectionHighlightColor(value:Int):Int
+	{
+		if (value != __selectionHighlightColor)
+		{
+			__dirty = true;
+			__setRenderDirty();
+		}
+
+		return __selectionHighlightColor = value;
+	}
+
+	@:noCompletion private var __selectionTextColor:Int = 0xffffff;
+
+	@:noCompletion private var __selectionHighlightColor:Int = 0x000000;
 }
 #else
 typedef TextField = flash.text.TextField;

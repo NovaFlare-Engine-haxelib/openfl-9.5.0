@@ -181,6 +181,39 @@ class VertexBuffer3D
 		uploadFromTypedArray(__tempFloat32Array);
 		#end
 	}
+
+	public function uploadFromArray(data:Array<Float>, startVertex:Int, numVertices:Int):Void
+	{
+		#if lime
+		if (data == null) return;
+		var gl = __context.gl;
+
+		// TODO: Optimize more
+
+		var start = startVertex * __vertexSize;
+		var count = numVertices * __vertexSize;
+		var length = start + count;
+
+		var existingFloat32Array = __tempFloat32Array;
+
+		if (__tempFloat32Array == null || __tempFloat32Array.length < count)
+		{
+			__tempFloat32Array = new Float32Array(count);
+
+			if (existingFloat32Array != null)
+			{
+				__tempFloat32Array.set(existingFloat32Array);
+			}
+		}
+
+		for (i in start...length)
+		{
+			__tempFloat32Array[i - start] = data[i];
+		}
+
+		uploadFromTypedArray(__tempFloat32Array);
+		#end
+	}
 }
 #else
 typedef VertexBuffer3D = flash.display3D.VertexBuffer3D;

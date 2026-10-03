@@ -34,7 +34,7 @@ import openfl.display._internal.stats.DrawCallContext;
 @SuppressWarnings("checkstyle:FieldDocComment")
 class Context3DGraphics
 {
-	private static var blankBitmapData = new BitmapData(1, 1, false, 0);
+	public static var blankBitmapData = new BitmapData(1, 1, false, 0);
 	private static var maskRender:Bool;
 	private static var tempColorTransform = new ColorTransform(1, 1, 1, 1, 0, 0, 0, 0);
 	private static var tempVerticesVector:Vector<Float> = new Vector<Float>();
@@ -1085,7 +1085,9 @@ class Context3DGraphics
 							positionX = c.x;
 							positionY = c.y;
 
-						case OVERRIDE_BLEND_MODE:
+						case OVERRIDE_DEPTH_TEST:
+ var c=data.readOverrideDepthTest(); context.__setGLDepthTest(c.depthTest); context.setDepthTest(c.depthTest,c.compareMode);
+ case OVERRIDE_BLEND_MODE:
 							var c = data.readOverrideBlendMode();
 							renderer.__setBlendMode(c.blendMode);
 
@@ -1259,6 +1261,8 @@ class Context3DGraphics
 		}
 		return scale9Start + center * (pos - scale9Start) / scale9Center;
 	}
+
+public static inline function getBlankBitmapData():BitmapData return blankBitmapData;
 }
 
 // =============================================================================

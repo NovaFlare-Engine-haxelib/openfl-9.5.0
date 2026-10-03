@@ -226,7 +226,9 @@ class NativeWindow extends EventDispatcher
 		__window.onMinimize.add(window_onMinimize);
 		__window.onMaximize.add(window_onMaximize);
 		__window.onRestore.add(window_onRestore);
-		__window.onClose.add(window_onClose);
+		__window.onMouseDown.add((x,y,button)->{if(button==0) {__mouseButtonDown=true;__dragOffsetX=x;__dragOffsetY=y;}});
+ __window.onMouseUp.add((x,y,button)->{if(button==0) {__mouseButtonDown=false;__stopStartMove();}});
+ __window.onClose.add(window_onClose);
 	}
 
 	/**
@@ -1231,7 +1233,8 @@ class NativeWindow extends EventDispatcher
 			var childWindow = __ownedWindows.pop();
 			childWindow.close();
 		}
-		__closed = true;
+		__stopStartMove();
+ __closed = true;
 		__window.onFocusIn.remove(window_onFocusIn);
 		__window.onFocusOut.remove(window_onFocusOut);
 		__window.onResize.remove(window_onResize);
@@ -1250,6 +1253,103 @@ class NativeWindow extends EventDispatcher
 		}
 		dispatchEvent(new Event(Event.CLOSE));
 	}
+
+#if sys
+	public function startMove():Bool
+	{
+		if (__closed)
+		{
+			throw new Error(ERROR_CLOSED, 3200);
+		}
+		if (__moveInProgress)
+		{
+			return false;
+		}
+		if (!__mouseButtonDown)
+		{
+			return false;
+		}
+
+		__moveInProgress = true;
+
+		__moveStartWindowX = __window.x;
+		__moveStartWindowY = __window.y;
+
+		__window.onMouseMove.add(__onStartMoveMouseMove);
+
+		return true;
+	}
+#end
+
+#if sys
+	@:noCompletion private var __mouseButtonDown:Bool = false;
+#end
+
+#if sys
+	@:noCompletion private var __moveInProgress:Bool = false;
+#end
+
+#if sys
+	@:noCompletion private var __moveStartWindowX:Int = 0;
+#end
+
+#if sys
+	@:noCompletion private var __moveStartWindowY:Int = 0;
+#end
+
+#if sys
+	@:noCompletion private function __onStartMoveMouseMove(x:Float, y:Float):Void
+	{
+		if (!__moveInProgress || __closed || !__mouseButtonDown)
+		{
+			__stopStartMove();
+			return;
+		}
+
+		// Mouse in global screen space
+		var globalMouseX = __window.x + x;
+		var globalMouseY = __window.y + y;
+
+		var targetX = Std.int(globalMouseX - __dragOffsetX);
+		var targetY = Std.int(globalMouseY - __dragOffsetY);
+
+		if (targetX == __window.x && targetY == __window.y) return;
+
+		var beforeBounds = new Rectangle(__window.x, __window.y, __window.width, __window.height);
+		var afterBounds = new Rectangle(targetX, targetY, __window.width, __window.height);
+
+		var movingEvent = new NativeWindowBoundsEvent(NativeWindowBoundsEvent.MOVING, false, true, beforeBounds, afterBounds);
+
+		if (!dispatchEvent(movingEvent))
+		{
+			__stopStartMove();
+			return;
+		}
+
+		__window.move(targetX, targetY);
+	}
+#end
+
+#if sys
+	@:noCompletion private var __dragOffsetX:Float = 0;
+#end
+
+#if sys
+	@:noCompletion private var __dragOffsetY:Float = 0;
+#end
+
+#if sys
+	@:noCompletion private function __stopStartMove():Void
+	{
+		if (!__moveInProgress)
+		{
+			return;
+		}
+
+		__moveInProgress = false;
+		__window.onMouseMove.remove(__onStartMoveMouseMove);
+	}
+#end
 }
 #else
 #if air

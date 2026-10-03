@@ -209,7 +209,15 @@ package openfl.display;
 			case "screen": SCREEN;
 			case "shader": SHADER;
 			case "subtract": SUBTRACT;
-			default: null;
+			case "colordodge": COLORDODGE;
+ case "colorburn": COLORBURN;
+ case "softlight": SOFTLIGHT;
+ case "exclusion": EXCLUSION;
+ case "hue": HUE;
+ case "saturation": SATURATION;
+ case "color": COLOR;
+ case "luminosity": LUMINOSITY;
+ default: null;
 		}
 	}
 
@@ -232,9 +240,33 @@ package openfl.display;
 			case BlendMode.SCREEN: "screen";
 			case BlendMode.SHADER: "shader";
 			case BlendMode.SUBTRACT: "subtract";
-			default: null;
+			case BlendMode.COLORDODGE: "colordodge";
+ case BlendMode.COLORBURN: "colorburn";
+ case BlendMode.SOFTLIGHT: "softlight";
+ case BlendMode.EXCLUSION: "exclusion";
+ case BlendMode.HUE: "hue";
+ case BlendMode.SATURATION: "saturation";
+ case BlendMode.COLOR: "color";
+ case BlendMode.LUMINOSITY: "luminosity";
+ default: null;
 		}
 	}
+
+	public var COLORDODGE = 15;
+
+	public var COLORBURN = 16;
+
+	public var SOFTLIGHT = 17;
+
+	public var EXCLUSION = 18;
+
+	public var HUE = 19;
+
+	public var SATURATION = 20;
+
+	public var COLOR = 21;
+
+	public var LUMINOSITY = 22;
 }
 #else
 @SuppressWarnings("checkstyle:FieldDocComment") #if (haxe_ver >= 4.0) enum #else @:enum #end abstract BlendMode(String) from String to String
@@ -254,6 +286,22 @@ package openfl.display;
 	public var SCREEN = "screen";
 	public var SHADER = "shader";
 	public var SUBTRACT = "subtract";
+
+ public var COLORDODGE="colordodge";
+
+ public var COLORBURN="colorburn";
+
+ public var SOFTLIGHT="softlight";
+
+ public var EXCLUSION="exclusion";
+
+ public var HUE="hue";
+
+ public var SATURATION="saturation";
+
+ public var COLOR="color";
+
+ public var LUMINOSITY="luminosity";
 }
 #end
 #else
