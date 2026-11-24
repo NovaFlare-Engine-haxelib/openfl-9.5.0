@@ -193,19 +193,8 @@ class ShaderBuffer
 			p++;
 		}
 
-		if (paramDataLength > 0)
-		{
-			if (paramData == null)
-			{
-				paramData = new Float32Array(paramDataLength);
-			}
-			else if (paramDataLength > paramData.length)
-			{
-				var data = new Float32Array(paramDataLength);
-				data.set(paramData);
-				paramData = data;
-			}
-		}
+		if (paramDataLength > 0 && (paramData == null || paramDataLength > paramData.length))
+			paramData = new Float32Array(paramDataLength);
 
 		var boolIndex = 0;
 		var floatIndex = 0;

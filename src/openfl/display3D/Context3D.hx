@@ -292,6 +292,10 @@ import lime.math.Vector2;
 	@:noCompletion private var __quadIndexBufferElements:Int;
 	@:noCompletion private var __stage:Stage;
 	@:noCompletion private var __stage3D:Stage3D;
+
+	#if (cpp && lime)
+	@:noCompletion private var __stageRenderTarget:openfl.display3D._internal.StageRenderTarget;
+	#end
 	@:noCompletion private var __state:Context3DState;
 	@:noCompletion private var __vertexConstants:Float32Array;
 
@@ -1068,6 +1072,12 @@ import lime.math.Vector2;
 	public function dispose(recreate:Bool = true):Void
 	{
 		// TODO: Dispose all related buffers
+		#if (cpp && lime)
+		if (gl != null && __stageRenderTarget != null)
+		{
+			__stageRenderTarget.dispose();
+		}
+		#end
 
 		gl = null;
 		__dispose();
@@ -2062,6 +2072,9 @@ import lime.math.Vector2;
 
 	@:noCompletion private function __dispose():Void
 	{
+		#if (cpp && lime)
+		__stageRenderTarget = null;
+		#end
 		driverInfo += " (Disposed)";
 
 		if (__stage3D != null)
@@ -2238,6 +2251,18 @@ import lime.math.Vector2;
 		}
 	}
 
+	#if (cpp && lime)
+	@:noCompletion private function __beginRenderResolution(width:Int, height:Int, trace:Bool):Bool
+	{
+		if (__stageRenderTarget == null)
+		{
+			if ((width <= 0 || height <= 0) && !trace) return false;
+			__stageRenderTarget = new openfl.display3D._internal.StageRenderTarget(this);
+		}
+		return __stageRenderTarget.begin(width, height, trace);
+	}
+	#end
+
 	@:noCompletion private function __flushGLFramebuffer():Void
 	{
 		if (__state.renderToTexture != null)
@@ -2362,6 +2387,18 @@ import lime.math.Vector2;
 			{
 				var contextHeight = Std.int(__stage.window.height * __stage.window.scale);
 				scissorY = contextHeight - scissorHeight - scissorY;
+				#if (cpp && lime)
+				var target = __stageRenderTarget;
+				if (target != null && target.active)
+				{
+					var left = Math.floor(scissorX * target.scaleX);
+					var bottom = Math.floor(scissorY * target.scaleY);
+					scissorWidth = scissorWidth == 0 ? 0 : Math.ceil((scissorX + scissorWidth) * target.scaleX) - left;
+					scissorHeight = scissorHeight == 0 ? 0 : Math.ceil((scissorY + scissorHeight) * target.scaleY) - bottom;
+					scissorX = left;
+					scissorY = bottom;
+				}
+				#end
 			}
 
 			if (#if openfl_disable_context_cache true #else __contextState.scissorRectangle.x != scissorX
@@ -2493,6 +2530,21 @@ import lime.math.Vector2;
 		}
 	}
 
+	@:noCompletion private function __setStageViewport(x:Int, y:Int, width:Int, height:Int):Void
+	{
+		#if (cpp && lime)
+		var target = __stageRenderTarget;
+		if (target != null && target.active && __state.renderToTexture == null)
+		{
+			x = Math.round(x * target.scaleX);
+			y = Math.round(y * target.scaleY);
+			width = Math.round(width * target.scaleX);
+			height = Math.round(height * target.scaleY);
+		}
+		#end
+		gl.viewport(x, y, width, height);
+	}
+
 	@:noCompletion private function __flushGLViewport():Void
 	{
 		// TODO: Cache
@@ -2512,7 +2564,20 @@ import lime.math.Vector2;
 				#end
 				var x = __stage3D == null ? 0 : Std.int(__stage3D.x);
 				var y = Std.int((__stage.window.height * __stage.window.scale) - scaledBackBufferHeight - (__stage3D == null ? 0 : __stage3D.y));
-					gl.viewport(x, y, scaledBackBufferWidth, scaledBackBufferHeight);
+				#if (cpp && lime)
+				var target = __stageRenderTarget;
+				if (target != null && target.presenting)
+				{
+					x = 0;
+					y = 0;
+					scaledBackBufferWidth = target.drawableWidth;
+					scaledBackBufferHeight = target.drawableHeight;
+				}
+				#end
+				__setStageViewport(x, y, scaledBackBufferWidth, scaledBackBufferHeight);
+				#if (cpp && lime)
+				if (target != null) target.reportViewport();
+				#end
 				}
 				else
 				{

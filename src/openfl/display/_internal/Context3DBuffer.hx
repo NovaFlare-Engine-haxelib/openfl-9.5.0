@@ -73,7 +73,7 @@ class Context3DBuffer
 		}
 	}
 
-	public function flushVertexBufferData():Void
+	public function flushVertexBufferData(usedFloats:Int = -1):Void
 	{
 		if (vertexBufferData.length > vertexCount)
 		{
@@ -81,7 +81,8 @@ class Context3DBuffer
 			vertexBuffer = context3D.createVertexBuffer(vertexCount, dataPerVertex, DYNAMIC_DRAW);
 		}
 
-		vertexBuffer.uploadFromTypedArray(vertexBufferData);
+		var byteLength = usedFloats >= 0 ? usedFloats * Float32Array.BYTES_PER_ELEMENT : -1;
+		vertexBuffer.uploadFromTypedArray(vertexBufferData, byteLength);
 	}
 
 	public function resize(elementCount:Int, dataPerVertex:Int = -1):Void

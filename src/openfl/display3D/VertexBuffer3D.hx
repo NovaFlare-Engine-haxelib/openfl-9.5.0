@@ -129,6 +129,13 @@ class VertexBuffer3D
 		var gl = __context.gl;
 
 		__context.__bindGLArrayBuffer(__id);
+		#if (lime && sys && lime_cffi && (lime_opengl || lime_opengles) && !doc_gen)
+		if (byteLength >= 0 && byteLength < data.byteLength)
+		{
+			__context.__context.gles2.bufferData(gl.ARRAY_BUFFER, byteLength, data, __usage);
+			return;
+		}
+		#end
 		gl.bufferData(gl.ARRAY_BUFFER, data, __usage);
 	}
 

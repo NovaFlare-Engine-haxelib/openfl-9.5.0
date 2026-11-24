@@ -8,6 +8,9 @@ import openfl.display3D._internal.GLFramebuffer;
 import openfl.display3D._internal.GLRenderbuffer;
 import openfl.display3D._internal.GLTexture;
 import openfl.display3D._internal.ATFGPUFormat;
+#if (windows && cpp && lime && novaflare_render_attachment_trace)
+import openfl.display3D._internal.RenderAttachmentTrace;
+#end
 import openfl.display._internal.SamplerState;
 import openfl.display.BitmapData;
 import openfl.events.EventDispatcher;
@@ -209,6 +212,9 @@ class TextureBase extends EventDispatcher
 
 		if (enableDepthAndStencil && __glDepthRenderbuffer == null)
 		{
+			#if (windows && cpp && lime && novaflare_render_attachment_trace)
+			var begin:cpp.Int64 = RenderAttachmentTrace.enabled ? RenderAttachmentTrace.qpc() : 0;
+			#end
 			__context.__bindGLFramebuffer(__glFramebuffer);
 
 			if (Context3D.__glDepthStencil != 0)
@@ -245,6 +251,22 @@ class TextureBase extends EventDispatcher
 			}
 
 			gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+			#if (windows && cpp && lime && novaflare_render_attachment_trace)
+			if (begin != (0:cpp.Int64) && __glDepthRenderbuffer != null)
+			{
+				var end = RenderAttachmentTrace.qpc();
+				if (end != (0:cpp.Int64))
+				{
+					RenderAttachmentTrace.write("render_attachment_allocation", begin, end, {
+						texture: RenderAttachmentTrace.objectId(__textureID),
+						framebuffer: RenderAttachmentTrace.objectId(__glFramebuffer),
+						depth: RenderAttachmentTrace.objectId(__glDepthRenderbuffer),
+						width: __width,
+						height: __height
+					});
+				}
+			}
+			#end
 		}
 
 		return __glFramebuffer;
@@ -315,10 +337,7 @@ class TextureBase extends EventDispatcher
 		{
 			var gl = __context.gl;
 
-			if (__textureTarget == __context.gl.TEXTURE_CUBE_MAP) __context.__bindGLTextureCubeMap(__textureID);
-			else
-				__context.__bindGLTexture2D(__textureID);
-
+			// Context3D binds this texture on the active sampler before setting its parameters.
 			var wrapModeS = 0, wrapModeT = 0;
 
 			switch (state.wrap)
@@ -425,7 +444,12 @@ class TextureBase extends EventDispatcher
 			gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, gl.UNSIGNED_BYTE, image.src);
 		}
 		#else
-		gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, image.buffer.width, image.buffer.height, 0, format, gl.UNSIGNED_BYTE, image.data);
+		#if (cpp && lime_cffi && !disable_cffi)
+		if (!lime._internal.backend.native.NativeCFFI.tryQueuePackedTextureImage2D(image, internalFormat, format))
+		#end
+		{
+			gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, image.buffer.width, image.buffer.height, 0, format, gl.UNSIGNED_BYTE, image.data);
+		}
 		#end
 
 		__context.__bindGLTexture2D(null);

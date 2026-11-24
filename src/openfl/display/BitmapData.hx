@@ -8,6 +8,9 @@ import openfl.display._internal.PerlinNoise;
 import openfl.display3D._internal.GLFramebuffer;
 import openfl.display3D._internal.GLRenderbuffer;
 import openfl.display3D.textures.TextureBase;
+#if (windows && cpp && lime && novaflare_render_attachment_trace)
+import openfl.display3D._internal.RenderAttachmentTrace;
+#end
 import openfl.display3D.Context3DClearMask;
 import openfl.display3D.Context3D;
 import openfl.display3D.IndexBuffer3D;
@@ -3254,9 +3257,16 @@ class BitmapData implements IBitmapDrawable
 		var cacheRTTAntiAlias = context.__state.renderToTextureAntiAlias;
 		var cacheRTTSurfaceSelector = context.__state.renderToTextureSurfaceSelector;
 
-		context.setRenderToTexture(getTexture(context), true);
-
+		var texture = getTexture(context);
+		context.setRenderToTexture(texture, true);
+		#if (windows && cpp && lime && novaflare_render_attachment_trace)
+		var begin:cpp.Int64 = RenderAttachmentTrace.enabled && texture != null && texture.__glDepthRenderbuffer == null
+			? RenderAttachmentTrace.qpc() : 0;
+		#end
 		renderer.__render(source);
+		#if (windows && cpp && lime && novaflare_render_attachment_trace)
+		var end:cpp.Int64 = begin != (0:cpp.Int64) && texture.__glDepthRenderbuffer != null ? RenderAttachmentTrace.qpc() : 0;
+		#end
 
 		if (cacheRTT != null)
 		{
@@ -3266,7 +3276,34 @@ class BitmapData implements IBitmapDrawable
 		{
 			context.setRenderToBackBuffer();
 		}
+		#if (windows && cpp && lime && novaflare_render_attachment_trace)
+		if (end != (0:cpp.Int64)) __traceDepthAttachment(source, texture, begin, end);
+		#end
 	}
+
+	#if (windows && cpp && lime && novaflare_render_attachment_trace)
+	private function __traceDepthAttachment(source:IBitmapDrawable, texture:TextureBase, begin:cpp.Int64, end:cpp.Int64):Void
+	{
+		var displayObject = Std.downcast(source, DisplayObject);
+		var parent = displayObject == null ? null : displayObject.parent;
+		var filters = displayObject == null ? null : displayObject.__filters;
+		RenderAttachmentTrace.write("render_attachment", begin, end, {
+			texture: RenderAttachmentTrace.objectId(texture.__textureID),
+			framebuffer: RenderAttachmentTrace.objectId(texture.__glFramebuffer),
+			depth: RenderAttachmentTrace.objectId(texture.__glDepthRenderbuffer),
+			width: texture.__width,
+			height: texture.__height,
+			source_class: Type.getClassName(Type.getClass(source)),
+			source_name: displayObject == null ? null : displayObject.name,
+			parent_class: parent == null ? null : Type.getClassName(Type.getClass(parent)),
+			parent_name: parent == null ? null : parent.name,
+			cache_bitmap: displayObject != null && displayObject.__cacheBitmapData == this,
+			cache_render: displayObject != null && displayObject.__isCacheBitmapRender,
+			filter_count: filters == null ? 0 : filters.length,
+			filters: filters == null ? [] : [for (filter in filters) Type.getClassName(Type.getClass(filter))]
+		});
+	}
+	#end
 
 	@:noCompletion private function __fillRect(rect:Rectangle, color:Int, allowFramebuffer:Bool):Void
 	{

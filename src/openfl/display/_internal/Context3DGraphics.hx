@@ -462,7 +462,7 @@ class Context3DGraphics
 
 		if (quadBufferPosition > 0)
 		{
-			graphics.__quadBuffer.flushVertexBufferData();
+			graphics.__quadBuffer.flushVertexBufferData(quadBufferPosition * 4 * graphics.__quadBuffer.dataPerVertex);
 		}
 
 		if (triangleIndexBufferPosition > 0)
