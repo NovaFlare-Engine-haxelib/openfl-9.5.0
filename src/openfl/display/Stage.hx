@@ -2449,6 +2449,10 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 					__renderer.__clear();
 				}
 
+				#if (cpp && lime)
+				var stageTarget = scaledTarget ? renderContext3D.__stageRenderTarget : null;
+				__renderer.__stageFilterScale = stageTarget == null ? 1.0 : Math.min(stageTarget.scaleX, stageTarget.scaleY);
+				#end
 				__renderer.__render(this);
 				#if sys
 				if (__novaPerfTrace) __novaAfterRenderer = haxe.Timer.stamp();

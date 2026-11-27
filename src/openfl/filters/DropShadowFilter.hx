@@ -328,14 +328,14 @@ import lime._internal.graphics.ImageDataUtil; // TODO
 			if (blurPass < __horizontalPasses)
 			{
 				var scale = Math.pow(0.5, blurPass >> 1) * 0.5;
-				shader.uRadius.value[0] = blurX * scale;
+				shader.uRadius.value[0] = blurX * scale #if (cpp && lime) * renderer.__filterRenderScale #end;
 				shader.uRadius.value[1] = 0;
 			}
 			else
 			{
 				var scale = Math.pow(0.5, (blurPass - __horizontalPasses) >> 1) * 0.5;
 				shader.uRadius.value[0] = 0;
-				shader.uRadius.value[1] = blurY * scale;
+				shader.uRadius.value[1] = blurY * scale #if (cpp && lime) * renderer.__filterRenderScale #end;
 			}
 			shader.uColor.value[0] = ((color >> 16) & 0xFF) / 255;
 			shader.uColor.value[1] = ((color >> 8) & 0xFF) / 255;
@@ -350,14 +350,14 @@ import lime._internal.graphics.ImageDataUtil; // TODO
 			{
 				var shader = GlowFilter.__innerCombineKnockoutShader;
 				shader.sourceBitmap.input = sourceBitmapData;
-				shader.offset.value[0] = __offsetX;
-				shader.offset.value[1] = __offsetY;
+				shader.offset.value[0] = __offsetX #if (cpp && lime) * renderer.__filterRenderScale #end;
+				shader.offset.value[1] = __offsetY #if (cpp && lime) * renderer.__filterRenderScale #end;
 				return shader;
 			}
 			var shader = GlowFilter.__innerCombineShader;
 			shader.sourceBitmap.input = sourceBitmapData;
-			shader.offset.value[0] = __offsetX;
-			shader.offset.value[1] = __offsetY;
+			shader.offset.value[0] = __offsetX #if (cpp && lime) * renderer.__filterRenderScale #end;
+			shader.offset.value[1] = __offsetY #if (cpp && lime) * renderer.__filterRenderScale #end;
 			return shader;
 		}
 		else
@@ -366,22 +366,22 @@ import lime._internal.graphics.ImageDataUtil; // TODO
 			{
 				var shader = GlowFilter.__combineKnockoutShader;
 				shader.sourceBitmap.input = sourceBitmapData;
-				shader.offset.value[0] = __offsetX;
-				shader.offset.value[1] = __offsetY;
+				shader.offset.value[0] = __offsetX #if (cpp && lime) * renderer.__filterRenderScale #end;
+				shader.offset.value[1] = __offsetY #if (cpp && lime) * renderer.__filterRenderScale #end;
 				return shader;
 			}
 			else if (__hideObject)
 			{
 				var shader = __hideShader;
 				shader.sourceBitmap.input = sourceBitmapData;
-				shader.offset.value[0] = __offsetX;
-				shader.offset.value[1] = __offsetY;
+				shader.offset.value[0] = __offsetX #if (cpp && lime) * renderer.__filterRenderScale #end;
+				shader.offset.value[1] = __offsetY #if (cpp && lime) * renderer.__filterRenderScale #end;
 				return shader;
 			}
 			var shader = GlowFilter.__combineShader;
 			shader.sourceBitmap.input = sourceBitmapData;
-			shader.offset.value[0] = __offsetX;
-			shader.offset.value[1] = __offsetY;
+			shader.offset.value[0] = __offsetX #if (cpp && lime) * renderer.__filterRenderScale #end;
+			shader.offset.value[1] = __offsetY #if (cpp && lime) * renderer.__filterRenderScale #end;
 			return shader;
 		}
 		#else

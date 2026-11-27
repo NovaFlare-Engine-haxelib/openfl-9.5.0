@@ -1,7 +1,6 @@
 package openfl.display._internal;
 
 #if !flash
-import openfl.utils._internal.Float32Array;
 import openfl.display.BitmapData;
 import openfl.display.BlendMode;
 import openfl.display.OpenGLRenderer;
@@ -18,6 +17,14 @@ import openfl.geom.Rectangle;
 import openfl.display._internal.stats.Context3DStats;
 import openfl.display._internal.stats.DrawCallContext;
 #end
+
+private typedef TileBufferContext =
+{
+	final parentTransform:Matrix;
+	final tileset:Tileset;
+	final alpha:Float;
+	final colorTransform:ColorTransform;
+}
 
 #if !openfl_debug
 @:fileXml('tags="haxe,release"')
@@ -36,6 +43,7 @@ import openfl.display._internal.stats.DrawCallContext;
 @SuppressWarnings("checkstyle:FieldDocComment")
 class Context3DTilemap
 {
+	private static final tileVertices = new Context3DTileVertices();
 	private static var cacheColorTransform:ColorTransform;
 	private static var context:Context3D;
 	private static var dataPerVertex:Int;
@@ -47,11 +55,10 @@ class Context3DTilemap
 	private static var lastUsedBitmapData:BitmapData;
 	private static var lastUsedShader:Shader;
 	private static var numTiles:Int;
-	private static var vertexBufferData:Float32Array;
-	private static var vertexDataPosition:Int;
 
 	public static function buildBuffer(tilemap:Tilemap, renderer:OpenGLRenderer):Void
 	{
+		numTiles = 0;
 		if (!tilemap.__renderable || tilemap.__group.__tiles.length == 0 || tilemap.__worldAlpha <= 0)
 		{
 			// TODO: Use dirty to perform sparse update of buffers?
@@ -60,42 +67,35 @@ class Context3DTilemap
 			return;
 		}
 
-		numTiles = 0;
-		vertexBufferData = (tilemap.__buffer != null) ? tilemap.__buffer.vertexBufferData : null;
-		vertexDataPosition = 0;
-
 		var rect = Rectangle.__pool.get();
-		var matrix = Matrix.__pool.get();
 		var parentTransform = Matrix.__pool.get();
-
-		dataPerVertex = 4;
-		if (tilemap.tileAlphaEnabled) dataPerVertex++;
-		if (tilemap.tileColorTransformEnabled) dataPerVertex += 8;
-
-		buildBufferTileContainer(tilemap, tilemap.__group, renderer, parentTransform, tilemap.__tileset, tilemap.tileAlphaEnabled, tilemap.__worldAlpha,
-			tilemap.tileColorTransformEnabled, tilemap.__worldColorTransform, null, rect, matrix);
-
-		tilemap.__buffer.flushVertexBufferData();
+		tileVertices.reset(tilemap.tileAlphaEnabled, tilemap.tileColorTransformEnabled);
+		final buildContext:TileBufferContext = {
+			parentTransform: parentTransform,
+			tileset: tilemap.__tileset,
+			alpha: tilemap.__worldAlpha,
+			colorTransform: tilemap.__worldColorTransform
+		};
+		buildBufferTileContainer(tilemap.__group, buildContext, renderer.__roundPixels, rect);
+		numTiles = tileVertices.tileCount;
+		dataPerVertex = tileVertices.stride;
+		if (numTiles > 0)
+		{
+			resizeBuffer(tilemap, numTiles);
+			tilemap.__buffer.uploadTiles(tileVertices);
+		}
 
 		Rectangle.__pool.release(rect);
-		Matrix.__pool.release(matrix);
 		Matrix.__pool.release(parentTransform);
 	}
 
-	private static function buildBufferTileContainer(tilemap:Tilemap, group:TileContainer, renderer:OpenGLRenderer, parentTransform:Matrix,
-			defaultTileset:Tileset, alphaEnabled:Bool, worldAlpha:Float, colorTransformEnabled:Bool, defaultColorTransform:ColorTransform,
-			cacheBitmapData:BitmapData, rect:Rectangle, matrix:Matrix, isTopLevel:Bool = true):Void
+	private static function buildBufferTileContainer(group:TileContainer, buildContext:TileBufferContext, roundPixels:Bool, rect:Rectangle):Void
 	{
 		var tileTransform = Matrix.__pool.get();
-		var roundPixels = renderer.__roundPixels;
-
 		var tiles = group.__tiles;
-		var length = group.__length;
-
-		if (isTopLevel) resizeBuffer(tilemap, numTiles + getRecursiveLength(group));
-
-		// Todo: Merge recursive length lookup with for tiles loop to avoid iterating over tiles twice
-		// resizeBuffer(tilemap, numTiles + length);
+		final alphaEnabled = tileVertices.alphaEnabled;
+		final colorTransformEnabled = tileVertices.colorTransformEnabled;
+		final defaultColorTransform = buildContext.colorTransform;
 
 		var tileset:Tileset;
 		var alpha:Float;
@@ -105,30 +105,16 @@ class Context3DTilemap
 		var tileData:TileData;
 		var tileRect:Rectangle;
 		var bitmapData:BitmapData;
-		var tileWidth:Float;
-		var tileHeight:Float;
 		var uvX:Float;
 		var uvY:Float;
 		var uvHeight:Float;
 		var uvWidth:Float;
-		var vertexOffset:Int;
-		var x:Float;
-		var y:Float;
-		var x2:Float;
-		var y2:Float;
-		var x3:Float;
-		var y3:Float;
-		var x4:Float;
-		var y4:Float;
-
-		var alphaPosition = 4;
-		var ctPosition = alphaEnabled ? 5 : 4;
 
 		for (tile in tiles)
 		{
 			tileTransform.setTo(1, 0, 0, 1, -tile.originX, -tile.originY);
 			tileTransform.concat(tile.matrix);
-			tileTransform.concat(parentTransform);
+			tileTransform.concat(buildContext.parentTransform);
 
 			if (roundPixels)
 			{
@@ -136,9 +122,9 @@ class Context3DTilemap
 				tileTransform.ty = Math.round(tileTransform.ty);
 			}
 
-			tileset = tile.tileset != null ? tile.tileset : defaultTileset;
+			tileset = tile.tileset != null ? tile.tileset : buildContext.tileset;
 
-			alpha = tile.alpha * worldAlpha;
+			alpha = tile.alpha * buildContext.alpha;
 			visible = tile.visible;
 			tile.__dirty = false;
 
@@ -180,8 +166,12 @@ class Context3DTilemap
 
 			if (tile.__length > 0)
 			{
-				buildBufferTileContainer(tilemap, cast tile, renderer, tileTransform, tileset, alphaEnabled, alpha, colorTransformEnabled, colorTransform,
-					cacheBitmapData, rect, matrix, false);
+				buildBufferTileContainer(cast tile, {
+					parentTransform: tileTransform,
+					tileset: tileset,
+					alpha: alpha,
+					colorTransform: colorTransform
+				}, roundPixels, rect);
 			}
 			else
 			{
@@ -216,83 +206,9 @@ class Context3DTilemap
 					uvHeight = tileData.__uvHeight;
 				}
 
-				tileWidth = tileRect.width;
-				tileHeight = tileRect.height;
-
-				x = tileTransform.__transformX(0, 0);
-				y = tileTransform.__transformY(0, 0);
-				x2 = tileTransform.__transformX(tileWidth, 0);
-				y2 = tileTransform.__transformY(tileWidth, 0);
-				x3 = tileTransform.__transformX(0, tileHeight);
-				y3 = tileTransform.__transformY(0, tileHeight);
-				x4 = tileTransform.__transformX(tileWidth, tileHeight);
-				y4 = tileTransform.__transformY(tileWidth, tileHeight);
-
-				vertexOffset = vertexDataPosition;
-
-				vertexBufferData[vertexOffset + 0] = x;
-				vertexBufferData[vertexOffset + 1] = y;
-				vertexBufferData[vertexOffset + 2] = uvX;
-				vertexBufferData[vertexOffset + 3] = uvY;
-
-				vertexBufferData[vertexOffset + dataPerVertex + 0] = x2;
-				vertexBufferData[vertexOffset + dataPerVertex + 1] = y2;
-				vertexBufferData[vertexOffset + dataPerVertex + 2] = uvWidth;
-				vertexBufferData[vertexOffset + dataPerVertex + 3] = uvY;
-
-				vertexBufferData[vertexOffset + (dataPerVertex * 2) + 0] = x3;
-				vertexBufferData[vertexOffset + (dataPerVertex * 2) + 1] = y3;
-				vertexBufferData[vertexOffset + (dataPerVertex * 2) + 2] = uvX;
-				vertexBufferData[vertexOffset + (dataPerVertex * 2) + 3] = uvHeight;
-
-				vertexBufferData[vertexOffset + (dataPerVertex * 3) + 0] = x4;
-				vertexBufferData[vertexOffset + (dataPerVertex * 3) + 1] = y4;
-				vertexBufferData[vertexOffset + (dataPerVertex * 3) + 2] = uvWidth;
-				vertexBufferData[vertexOffset + (dataPerVertex * 3) + 3] = uvHeight;
-
-				if (alphaEnabled)
-				{
-					for (i in 0...4)
-					{
-						vertexBufferData[vertexOffset + (dataPerVertex * i) + alphaPosition] = alpha;
-					}
-				}
-
-				if (colorTransformEnabled)
-				{
-					if (colorTransform != null)
-					{
-						for (i in 0...4)
-						{
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition] = colorTransform.redMultiplier;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 1] = colorTransform.greenMultiplier;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 2] = colorTransform.blueMultiplier;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 3] = colorTransform.alphaMultiplier;
-
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 4] = colorTransform.redOffset;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 5] = colorTransform.greenOffset;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 6] = colorTransform.blueOffset;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 7] = colorTransform.alphaOffset;
-						}
-					}
-					else
-					{
-						for (i in 0...4)
-						{
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition] = 1;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 1] = 1;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 2] = 1;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 3] = 1;
-
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 4] = 0;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 5] = 0;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 6] = 0;
-							vertexBufferData[vertexOffset + (dataPerVertex * i) + ctPosition + 7] = 0;
-						}
-					}
-				}
-
-				vertexDataPosition += dataPerVertex * 4;
+				tileVertices.appendGeometry(tileTransform, tileRect);
+				tileVertices.appendUV(uvX, uvY, uvWidth, uvHeight);
+				tileVertices.appendAttributes(alpha, colorTransform);
 			}
 		}
 
@@ -312,7 +228,7 @@ class Context3DTilemap
 			var shader = renderer.__initDisplayShader(cast currentShader);
 			renderer.setShader(shader);
 			renderer.applyBitmapData(currentBitmapData, tilemap.smoothing);
-			renderer.applyMatrix(renderer.__getMatrix(tilemap.__renderTransform, AUTO));
+			renderer.__applyTransformMatrix(tilemap.__renderTransform, AUTO);
 
 			if (tilemap.tileAlphaEnabled)
 			{
@@ -393,20 +309,6 @@ class Context3DTilemap
 
 		lastUsedBitmapData = currentBitmapData;
 		lastUsedShader = currentShader;
-	}
-
-	private static function getRecursiveLength(tileContainer:TileContainer):Int
-	{
-		var tiles = tileContainer.__tiles;
-		var totalLength = 0;
-
-		for (tile in tiles)
-		{
-			if (tile.__length > 0) totalLength += getRecursiveLength(cast tile);
-			else
-				totalLength++;
-		}
-		return totalLength;
 	}
 
 	public static function render(tilemap:Tilemap, renderer:OpenGLRenderer):Void
@@ -644,18 +546,14 @@ class Context3DTilemap
 
 	private static function resizeBuffer(tilemap:Tilemap, count:Int):Void
 	{
-		numTiles = count;
-
 		if (tilemap.__buffer == null)
 		{
-			tilemap.__buffer = new Context3DBuffer(context, QUADS, numTiles, dataPerVertex);
+			tilemap.__buffer = new Context3DBuffer(context, QUADS, count, dataPerVertex);
 		}
 		else
 		{
-			tilemap.__buffer.resize(numTiles, dataPerVertex);
+			tilemap.__buffer.resize(count, dataPerVertex);
 		}
-
-		vertexBufferData = tilemap.__buffer.vertexBufferData;
 	}
 }
 #end

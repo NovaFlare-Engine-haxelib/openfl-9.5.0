@@ -246,6 +246,9 @@ class ConvolutionFilter extends BitmapFilter
 		__convolutionShader.uDivisor.value[0] = divisor;
 		__convolutionShader.uBias.value[0] = bias;
 		__convolutionShader.uPreserveAlpha.value[0] = preserveAlpha;
+		#if (cpp && lime)
+		__convolutionShader.uSampleScale.value[0] = renderer.__filterRenderScale;
+		#end
 		#end
 
 		return __convolutionShader;
@@ -329,10 +332,11 @@ private class ConvolutionShader extends BitmapFilterShader
 
 		uniform mat4 openfl_Matrix;
 		uniform vec2 openfl_TextureSize;
+		uniform float uSampleScale;
 
 		void main(void) {
 
-			vec2 r = vec2 (1.0, 1.0) / openfl_TextureSize;
+			vec2 r = vec2 (uSampleScale, uSampleScale) / openfl_TextureSize;
 			vec2 t = openfl_TextureCoord;
 
 			vBlurCoords[0] = t + r * vec2 (-1.0, -1.0);
@@ -358,6 +362,7 @@ private class ConvolutionShader extends BitmapFilterShader
 		uDivisor.value = [1];
 		uBias.value = [0];
 		uPreserveAlpha.value = [true];
+		uSampleScale.value = [1.0];
 		#end
 	}
 }

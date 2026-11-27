@@ -51,7 +51,7 @@ class Context3DShape
 
 				matrix.concat(graphics.__worldTransform);
 
-				renderer.applyMatrix(renderer.__getMatrix(matrix, AUTO));
+				renderer.__applyTransformMatrix(matrix, AUTO);
 
 				Matrix.__pool.release(matrix);
 
@@ -94,7 +94,7 @@ class Context3DShape
 				var shader = renderer.__maskShader;
 				renderer.setShader(shader);
 				renderer.applyBitmapData(graphics.__bitmap, true);
-				renderer.applyMatrix(renderer.__getMatrix(graphics.__worldTransform, AUTO));
+				renderer.__applyTransformMatrix(graphics.__worldTransform, AUTO);
 				renderer.updateShader();
 
 				var vertexBuffer = graphics.__bitmap.getVertexBuffer(context);

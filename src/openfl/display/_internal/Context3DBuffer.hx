@@ -6,6 +6,9 @@ import openfl.utils._internal.UInt16Array;
 import openfl.display3D.Context3D;
 import openfl.display3D.IndexBuffer3D;
 import openfl.display3D.VertexBuffer3D;
+#if (cpp && lime && lime_cffi && !disable_cffi && !macro && (lime_opengl || lime_opengles))
+import lime._internal.backend.native.NativeCFFI;
+#end
 
 @SuppressWarnings("checkstyle:FieldDocComment")
 class Context3DBuffer
@@ -75,14 +78,39 @@ class Context3DBuffer
 
 	public function flushVertexBufferData(usedFloats:Int = -1):Void
 	{
+		ensureVertexBuffer();
+		var byteLength = usedFloats >= 0 ? usedFloats * Float32Array.BYTES_PER_ELEMENT : -1;
+		vertexBuffer.uploadFromTypedArray(vertexBufferData, byteLength);
+	}
+
+	public function uploadQuadBatches(batches:Array<Context3DQuadBatch>, quadCount:Int):Void
+	{
+		#if (cpp && lime && lime_cffi && !disable_cffi && !macro && (lime_opengl || lime_opengles))
+		ensureVertexBuffer();
+		if (vertexBuffer.__tryUploadQuadBatches(batches, quadCount)) return;
+		#end
+		Context3DQuadBatch.writeVertices(batches, vertexBufferData);
+		flushVertexBufferData(quadCount * Context3DQuadBatch.VALUES_PER_QUAD);
+	}
+
+	public function uploadTiles(tiles:Context3DTileVertices):Void
+	{
+		#if (cpp && lime && lime_cffi && !disable_cffi && !macro && (lime_opengl || lime_opengles))
+		ensureVertexBuffer();
+		@:privateAccess context3D.__bindGLArrayBuffer(vertexBuffer.__id);
+		if (@:privateAccess NativeCFFI.tryQueueTileBuffer(tiles.records, tiles.flags, vertexBuffer.__usage)) return;
+		#end
+		tiles.writeVertices(vertexBufferData);
+		flushVertexBufferData(tiles.usedFloats());
+	}
+
+	private function ensureVertexBuffer():Void
+	{
 		if (vertexBufferData.length > vertexCount)
 		{
 			vertexCount = vertexBufferData.length;
 			vertexBuffer = context3D.createVertexBuffer(vertexCount, dataPerVertex, DYNAMIC_DRAW);
 		}
-
-		var byteLength = usedFloats >= 0 ? usedFloats * Float32Array.BYTES_PER_ELEMENT : -1;
-		vertexBuffer.uploadFromTypedArray(vertexBufferData, byteLength);
 	}
 
 	public function resize(elementCount:Int, dataPerVertex:Int = -1):Void

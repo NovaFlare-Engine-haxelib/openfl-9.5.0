@@ -52,7 +52,7 @@ class StageRenderTarget
 		drawableWidth = outputWidth;
 		drawableHeight = outputHeight;
 
-		var ratio = Math.min(boundsWidth / outputWidth, boundsHeight / outputHeight);
+		var ratio = Math.min(1, Math.min(boundsWidth / outputWidth, boundsHeight / outputHeight));
 		var targetWidth = Std.int(Math.max(1, Math.round(outputWidth * ratio)));
 		var targetHeight = Std.int(Math.max(1, Math.round(outputHeight * ratio)));
 		if (boundsWidth <= 0 || boundsHeight <= 0 || (targetWidth == outputWidth && targetHeight == outputHeight))

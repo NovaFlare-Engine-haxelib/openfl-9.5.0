@@ -49,6 +49,10 @@ class DisplayObjectRenderer extends EventDispatcher
 	@SuppressWarnings("checkstyle:Dynamic") @:noCompletion private var __context:#if lime RenderContext #else Dynamic #end;
 	@:noCompletion private var __overrideBlendMode:BlendMode;
 	@:noCompletion private var __pixelRatio:Float;
+	#if (cpp && lime)
+	@:noCompletion private var __stageFilterScale:Float = 1;
+	@:allow(openfl.filters) @:noCompletion private var __filterRenderScale:Float = 1;
+	#end
 	@:noCompletion private var __roundPixels:Bool;
 	@:noCompletion private var __stage:Stage;
 	@:noCompletion private var __tempColorTransform:ColorTransform;
@@ -211,6 +215,19 @@ class DisplayObjectRenderer extends EventDispatcher
 		return null;
 	}
 
+	#if (cpp && lime)
+	private static function __disposeFilterCacheBitmap(bitmap:BitmapData):Void
+	{
+		if (bitmap == null || !bitmap.__isValid) return;
+
+		// These render targets belong to the display cache. Dispose their GL resources before BitmapData drops them.
+		if (bitmap.__texture != null) bitmap.__texture.dispose();
+		if (bitmap.__vertexBuffer != null) bitmap.__vertexBuffer.dispose();
+		if (bitmap.__indexBuffer != null) bitmap.__indexBuffer.dispose();
+		bitmap.dispose();
+	}
+	#end
+
 	@:noCompletion private function __updateCacheBitmap(displayObject:DisplayObject, force:Bool):Bool
 	{
 		if (displayObject == null) return false;
@@ -260,6 +277,11 @@ class DisplayObjectRenderer extends EventDispatcher
 			var needRender = (displayObject.__cacheBitmap == null
 				|| (displayObject.__renderDirty && (force || (displayObject.__children != null && displayObject.__children.length > 0)))
 				|| displayObject.opaqueBackground != displayObject.__cacheBitmapBackground);
+			#if (cpp && lime)
+			var cacheRenderer = displayObject.__cacheBitmapRenderer;
+			// A cached ancestor must visit its children again even if it has no filters of its own.
+			if (cacheRenderer != null && cacheRenderer.__stageFilterScale != __stageFilterScale) needRender = true;
+			#end
 			var softwareDirty = needRender
 				|| (displayObject.__graphics != null && displayObject.__graphics.__softwareDirty)
 				|| !displayObject.__cacheBitmapColorTransform.__equals(colorTransform, true);
@@ -286,9 +308,30 @@ class DisplayObjectRenderer extends EventDispatcher
 				if (softwareDirty && (renderType == CANVAS || renderType == CAIRO)) needRender = true;
 				if (hardwareDirty && renderType == OPENGL) needRender = true;
 			}
+			#if (cpp && lime)
+			else if (cacheRenderer != null)
+			{
+				renderType = cacheRenderer.__type;
+			}
+			#end
 
-			var updateTransform = (needRender || !displayObject.__cacheBitmap.__worldTransform.equals(displayObject.__worldTransform));
 			var hasFilters = #if !openfl_disable_filters displayObject.__filters != null #else false #end;
+			#if (cpp && lime)
+			var filterRenderScale = hasFilters && renderType == OPENGL ? __stageFilterScale : 1.0;
+			if (cacheRenderer != null && cacheRenderer.__filterRenderScale != filterRenderScale)
+			{
+				// The normal cache growth path retains oversized render targets.
+				__disposeFilterCacheBitmap(displayObject.__cacheBitmapData);
+				__disposeFilterCacheBitmap(displayObject.__cacheBitmapData2);
+				__disposeFilterCacheBitmap(displayObject.__cacheBitmapData3);
+				displayObject.__cacheBitmapData = null;
+				displayObject.__cacheBitmapData2 = null;
+				displayObject.__cacheBitmapData3 = null;
+				displayObject.__cacheBitmapRenderer = null;
+				needRender = true;
+			}
+			#end
+			var updateTransform = (needRender || !displayObject.__cacheBitmap.__worldTransform.equals(displayObject.__worldTransform));
 
 			#if !openfl_enable_cacheasbitmap
 			if (renderer.__type == DOM && !hasFilters)
@@ -370,10 +413,11 @@ class DisplayObjectRenderer extends EventDispatcher
 			var offsetX = 0., offsetY = 0.;
 
 			#if (openfl_disable_hdpi || openfl_disable_hdpi_cacheasbitmap)
-			var pixelRatio = 1;
+			var cachePixelRatio = 1.0;
 			#else
-			var pixelRatio = __pixelRatio;
+			var cachePixelRatio = __pixelRatio;
 			#end
+			var pixelRatio = cachePixelRatio #if (cpp && lime) * filterRenderScale #end;
 
 			if (updateTransform || needRender)
 			{
@@ -492,6 +536,10 @@ class DisplayObjectRenderer extends EventDispatcher
 					displayObject.__cacheBitmap.__renderTransform.concat(displayObject.__renderTransform);
 					displayObject.__cacheBitmap.__renderTransform.a *= 1 / pixelRatio;
 					displayObject.__cacheBitmap.__renderTransform.d *= 1 / pixelRatio;
+					#if (cpp && lime)
+					displayObject.__cacheBitmap.__renderTransform.b /= filterRenderScale;
+					displayObject.__cacheBitmap.__renderTransform.c /= filterRenderScale;
+					#end
 					displayObject.__cacheBitmap.__renderTransform.tx += offsetX;
 					displayObject.__cacheBitmap.__renderTransform.ty += offsetY;
 				}
@@ -557,7 +605,12 @@ class DisplayObjectRenderer extends EventDispatcher
 				displayObject.__cacheBitmapRenderer.__worldTransform.ty -= offsetY;
 				displayObject.__cacheBitmapRenderer.__worldTransform.scale(pixelRatio, pixelRatio);
 
-				displayObject.__cacheBitmapRenderer.__pixelRatio = pixelRatio;
+				// Scissor conversion still uses the device pixel ratio. Only the cache raster is scaled.
+				displayObject.__cacheBitmapRenderer.__pixelRatio = cachePixelRatio;
+				#if (cpp && lime)
+				displayObject.__cacheBitmapRenderer.__stageFilterScale = __stageFilterScale;
+				displayObject.__cacheBitmapRenderer.__filterRenderScale = filterRenderScale;
+				#end
 
 				displayObject.__cacheBitmapRenderer.__worldColorTransform.__copyFrom(colorTransform);
 				displayObject.__cacheBitmapRenderer.__worldColorTransform.__invert();

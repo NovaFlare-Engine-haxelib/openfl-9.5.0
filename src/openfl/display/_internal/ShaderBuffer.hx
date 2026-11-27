@@ -2,6 +2,7 @@ package openfl.display._internal;
 
 #if !flash
 import openfl.display3D._internal.GLBuffer;
+import openfl.display3D.Context3D;
 import openfl.utils._internal.Float32Array;
 import openfl.display3D.Context3DMipFilter;
 import openfl.display3D.Context3DTextureFilter;
@@ -11,11 +12,24 @@ import openfl.display.GraphicsShader;
 import openfl.display.ShaderInput;
 import openfl.display.ShaderParameter;
 
+#if (cpp && lime && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+import lime._internal.backend.native.NativeCFFI;
+
+private typedef ShaderAttributeSegment = {
+	var offset:Int;
+	var values:Array<Float>;
+	var repeat:Int;
+	var components:Int;
+}
+#end
+
 #if !openfl_debug
 @:fileXml('tags="haxe,release"')
 @:noDebug
 #end
 @:access(openfl.display.Shader)
+@:access(openfl.display.ShaderParameter)
+@:access(openfl.display3D.Context3D)
 @SuppressWarnings("checkstyle:FieldDocComment")
 class ShaderBuffer
 {
@@ -51,6 +65,13 @@ class ShaderBuffer
 	public var paramRefs_Int:Array<ShaderParameter<Int>>;
 	public var paramTypes:Array<Int>;
 	public var shader:GraphicsShader;
+	#if (cpp && lime && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+	private static inline var QUAD_VERTEX_COUNT = 4;
+	private var shaderParamTicket:Dynamic;
+	private var shaderParamCaptureActive:Bool = false;
+	private var shaderAttributeSlots:Array<ShaderAttributeSegment>;
+	private var deferredAttributes:Array<ShaderAttributeSegment>;
+	#end
 
 	public function new()
 	{
@@ -104,9 +125,52 @@ class ShaderBuffer
 		overrideBoolCount = 0;
 	}
 
-	public function update(shader:GraphicsShader):Void
+	@:noCompletion public function bindAndUpload(context:Context3D, uploadPrefix:Bool = false):Void
+	{
+		if (paramDataLength == 0)
+		{
+			context.__bindGLArrayBuffer(null);
+			return;
+		}
+
+		final gl = context.gl;
+		if (paramDataBuffer == null)
+			paramDataBuffer = gl.createBuffer();
+		context.__bindGLArrayBuffer(paramDataBuffer);
+
+		#if (cpp && lime && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+		if (shaderParamCaptureActive)
+		{
+			if (NativeCFFI.tryQueueShaderParams(shaderParamTicket, gl.DYNAMIC_DRAW)) return;
+
+			final dataView:lime.utils.ArrayBufferView = paramData;
+			if (!NativeCFFI.materializeShaderParams(shaderParamTicket, dataView.buffer, dataView.byteOffset, paramDataLength))
+				throw new haxe.Exception("Could not restore shader attribute data");
+			shaderParamCaptureActive = false;
+		}
+		#end
+
+		if (uploadPrefix)
+		{
+			#if (lime && sys && lime_cffi && (lime_opengl || lime_opengles) && !doc_gen)
+			final dataView:lime.utils.ArrayBufferView = paramData;
+			context.__context.gles2.bufferData(gl.ARRAY_BUFFER, paramDataLength * Float32Array.BYTES_PER_ELEMENT, dataView, gl.DYNAMIC_DRAW);
+			return;
+			#elseif lime
+			final data = paramData.length != paramDataLength ? paramData.subarray(0, paramDataLength) : paramData;
+			gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+			return;
+			#end
+		}
+		gl.bufferData(gl.ARRAY_BUFFER, paramData, gl.DYNAMIC_DRAW);
+	}
+
+	public function update(shader:GraphicsShader, ?compactAlphas:Array<Float>, ?compactMultipliers:Array<Float>, ?compactOffsets:Array<Float>):Bool
 	{
 		#if lime
+		#if (cpp && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+		shaderParamCaptureActive = false;
+		#end
 		inputCount = 0;
 		// overrideCount = 0;
 		overrideIntCount = 0;
@@ -119,9 +183,21 @@ class ShaderBuffer
 		paramIntCount = 0;
 		this.shader = null;
 
-		if (shader == null) return;
+		if (shader == null)
+		{
+			#if (cpp && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+			shaderParamTicket = null;
+			#end
+			return false;
+		}
 
 		shader.__init();
+		#if (cpp && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+		if (compactAlphas != null && (!NativeCFFI.supportsShaderAttributeRepetition()
+			|| !validateCompactQuadAttributes(shader, compactAlphas, compactMultipliers, compactOffsets))) return false;
+		#else
+		if (compactAlphas != null) return false;
+		#end
 
 		inputCount = shader.__inputBitmapData.length;
 		var input:ShaderInput<BitmapData>;
@@ -169,6 +245,18 @@ class ShaderBuffer
 
 			paramPositions[p] = paramDataLength;
 			length = (param.value != null ? param.value.length : 0);
+			#if (cpp && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+			if (compactAlphas != null)
+			{
+				switch (param.name)
+				{
+					case "alpha": length = compactAlphas.length * QUAD_VERTEX_COUNT;
+					case "colorMultiplier": length = compactMultipliers == null ? 0 : compactMultipliers.length * QUAD_VERTEX_COUNT;
+					case "colorOffset": length = compactOffsets == null ? 0 : compactOffsets.length * QUAD_VERTEX_COUNT;
+					default:
+				}
+			}
+			#end
 			paramLengths[p] = length;
 			paramDataLength += length;
 			paramTypes[p] = 1;
@@ -226,6 +314,31 @@ class ShaderBuffer
 				floatParam = paramRefs_Float[floatIndex];
 				floatIndex++;
 
+				#if (cpp && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+				if (compactAlphas != null && length > 0)
+				{
+					final values = switch (floatParam.name)
+					{
+						case "alpha": compactAlphas;
+						case "colorMultiplier": compactMultipliers;
+						case "colorOffset": compactOffsets;
+						default: null;
+					}
+					if (values != null)
+					{
+						deferShaderAttribute(paramPosition, values, QUAD_VERTEX_COUNT, floatParam.__length);
+						paramPosition += length;
+						continue;
+					}
+				}
+				// Uniforms and constant attributes are still read from the CPU array.
+				if (!floatParam.__isUniform && length > floatParam.__length)
+				{
+					deferShaderAttribute(paramPosition, floatParam.value);
+					paramPosition += length;
+					continue;
+				}
+				#end
 				for (j in 0...length)
 				{
 					paramData[paramPosition] = floatParam.value[j];
@@ -245,8 +358,112 @@ class ShaderBuffer
 			}
 		}
 
+		#if (cpp && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+		finishShaderAttributeCapture();
+		#end
+
 		this.shader = shader;
+		return true;
+		#else
+		return false;
 		#end
 	}
+
+	#if (cpp && lime && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+	private static function validateCompactQuadAttributes(shader:GraphicsShader, alphas:Array<Float>, multipliers:Array<Float>, offsets:Array<Float>):Bool
+	{
+		if (alphas.length == 0 || alphas.length > 0x7FFFFFFF / (9 * QUAD_VERTEX_COUNT * Float32Array.BYTES_PER_ELEMENT)) return false;
+		if ((multipliers == null) != (offsets == null)) return false;
+		if (multipliers != null && (multipliers.length != alphas.length * 4 || offsets.length != multipliers.length)) return false;
+
+		var hasAlpha = false;
+		var hasMultiplier = false;
+		var hasOffset = false;
+		for (parameter in shader.__paramFloat)
+		{
+			switch (parameter.name)
+			{
+				case "alpha":
+					if (hasAlpha || parameter.__isUniform || parameter.type != FLOAT) return false;
+					hasAlpha = true;
+				case "colorMultiplier":
+					if (hasMultiplier || parameter.__isUniform || parameter.type != FLOAT4) return false;
+					hasMultiplier = true;
+				case "colorOffset":
+					if (hasOffset || parameter.__isUniform || parameter.type != FLOAT4) return false;
+					hasOffset = true;
+				default:
+			}
+		}
+		return hasAlpha && (multipliers == null || (hasMultiplier && hasOffset));
+	}
+
+	private function deferShaderAttribute(offset:Int, values:Array<Float>, repeat:Int = 1, components:Int = 1):Void
+	{
+		if (deferredAttributes == null)
+		{
+			deferredAttributes = [];
+			shaderAttributeSlots = [];
+		}
+
+		final index = deferredAttributes.length;
+		if (index == shaderAttributeSlots.length)
+			shaderAttributeSlots.push({offset: offset, values: values, repeat: repeat, components: components});
+		else
+		{
+			final segment = shaderAttributeSlots[index];
+			segment.offset = offset;
+			segment.values = values;
+			segment.repeat = repeat;
+			segment.components = components;
+		}
+		deferredAttributes.push(shaderAttributeSlots[index]);
+	}
+
+	private function finishShaderAttributeCapture():Void
+	{
+		if (deferredAttributes == null || deferredAttributes.length == 0)
+		{
+			shaderParamTicket = null;
+			return;
+		}
+
+		final view:lime.utils.ArrayBufferView = paramData;
+		if (shaderParamTicket == null || !NativeCFFI.tryRecaptureShaderParams(shaderParamTicket, deferredAttributes, view, paramDataLength))
+		{
+			shaderParamTicket = NativeCFFI.trySnapshotShaderParams(deferredAttributes, view.buffer, view.byteOffset, paramDataLength);
+		}
+		shaderParamCaptureActive = shaderParamTicket != null;
+
+		for (segment in deferredAttributes)
+		{
+			if (!shaderParamCaptureActive) materializeDeferredAttribute(segment);
+			segment.values = null;
+		}
+		deferredAttributes.resize(0);
+	}
+
+	private function materializeDeferredAttribute(segment:ShaderAttributeSegment):Void
+	{
+		final values = segment.values;
+		if (segment.repeat == 1)
+		{
+			for (index in 0...values.length)
+				paramData[segment.offset + index] = values[index];
+			return;
+		}
+
+		var position = segment.offset;
+		for (attribute in 0...Std.int(values.length / segment.components))
+		{
+			final source = attribute * segment.components;
+			for (copy in 0...segment.repeat)
+			{
+				for (component in 0...segment.components)
+					paramData[position++] = values[source + component];
+			}
+		}
+	}
+	#end
 }
 #end

@@ -290,14 +290,14 @@ import lime._internal.graphics.ImageDataUtil; // TODO
 			if (blurPass < __horizontalPasses)
 			{
 				var scale = Math.pow(0.5, blurPass >> 1) * 0.5;
-				shader.uRadius.value[0] = blurX * scale;
+				shader.uRadius.value[0] = blurX * scale #if (cpp && lime) * renderer.__filterRenderScale #end;
 				shader.uRadius.value[1] = 0;
 			}
 			else
 			{
 				var scale = Math.pow(0.5, (blurPass - __horizontalPasses) >> 1) * 0.5;
 				shader.uRadius.value[0] = 0;
-				shader.uRadius.value[1] = blurY * scale;
+				shader.uRadius.value[1] = blurY * scale #if (cpp && lime) * renderer.__filterRenderScale #end;
 			}
 			shader.uColor.value[0] = ((color >> 16) & 0xFF) / 255;
 			shader.uColor.value[1] = ((color >> 8) & 0xFF) / 255;
