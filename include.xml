@@ -9,6 +9,7 @@
 	<!-- <set name="lime-version" value="${expect-lime-version}" if="setup" unless="lime-version" /> -->
 
 	<haxedef name="native" if="cpp || neko" />
+	<haxedef name="nova_stage_render_target" if="cpp" />
 	<set name="native" if="cpp || neko" />
 
 	<window stencil-buffer="true" depth-buffer="true" color-depth="32" />
@@ -63,6 +64,7 @@
 
 	<section unless="custom-backend">
 
+		<haxedef name="novaflare_compact_quad_shader_attributes" if="cpp" />
 		<define name="openfl-disable-handle-error" if="debug" />
 
 		<section if="native">
@@ -145,6 +147,8 @@
 	<library handler="swf" type="swf_lite" />
 	<library handler="swf" type="swc" />
 
+	<haxedef name="novaflare_threaded_projection_matrix" if="cpp" />
+
 	<section if="setup">
 
 		<haxelib name="lime" version="${lime-version}" if="lime-version" />
@@ -154,6 +158,8 @@
 	</section>
 
 	<include haxelib="openfl-samples" if="create" />
+
+	<haxedef name="novaflare_threaded_shader_inputs" if="cpp" />
 
 	<haxeflag name="--macro" value="addMetadata('@:build(openfl.utils._internal.NFShaderCompat.build())', 'openfl.display.Shader')" unless="flash || nme" />
 </extension>

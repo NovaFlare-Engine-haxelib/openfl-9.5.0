@@ -232,6 +232,9 @@ class Shader
 	@:noCompletion private var __inputBitmapData:Array<ShaderInput<BitmapData>>;
 	@:noCompletion private var __isGenerated:Bool;
 	@:noCompletion private var __matrix:ShaderParameter<Float>;
+	#if novaflare_threaded_projection_matrix
+	private var __activeProjectionMatrix:ShaderParameter<Float>;
+	#end
 	@:noCompletion private var __numPasses:Int;
 	@:noCompletion private var __paramBool:Array<ShaderParameter<Bool>>;
 	@:noCompletion private var __paramFloat:Array<ShaderParameter<Float>>;
@@ -738,6 +741,25 @@ class Shader
 		}
 	}
 
+	#if novaflare_threaded_projection_matrix
+	@:noCompletion private function __updateWithProjectionMatrix(matrix:ShaderParameter<Float>, ?shaderBuffer:ShaderBuffer, bufferOffset:Int = 0):Void
+	{
+		final previous = __activeProjectionMatrix;
+		__activeProjectionMatrix = matrix;
+		try
+		{
+			if (shaderBuffer == null) __update();
+			else __updateFromBuffer(shaderBuffer, bufferOffset);
+		}
+		catch (error:Dynamic)
+		{
+			__activeProjectionMatrix = previous;
+			throw error;
+		}
+		__activeProjectionMatrix = previous;
+	}
+	#end
+
 	@:noCompletion private function __update():Void
 	{
 		if (program != null)
@@ -771,6 +793,9 @@ class Shader
 
 		for (parameter in __paramFloat)
 		{
+			#if novaflare_threaded_projection_matrix
+			if (parameter == __activeProjectionMatrix) continue;
+			#end
 			parameter.__updateGL(__context);
 		}
 
@@ -804,26 +829,7 @@ class Shader
 			}
 		}
 
-		var gl = __context.gl;
-
-		if (shaderBuffer.paramDataLength > 0)
-		{
-			if (shaderBuffer.paramDataBuffer == null)
-			{
-				shaderBuffer.paramDataBuffer = gl.createBuffer();
-			}
-
-			// Log.verbose ("bind param data buffer (length: " + shaderBuffer.paramData.length + ") (" + shaderBuffer.paramCount + ")");
-
-			__context.__bindGLArrayBuffer(shaderBuffer.paramDataBuffer);
-			gl.bufferData(gl.ARRAY_BUFFER, shaderBuffer.paramData, gl.DYNAMIC_DRAW);
-		}
-		else
-		{
-			// Log.verbose ("bind buffer null");
-
-			__context.__bindGLArrayBuffer(null);
-		}
+		shaderBuffer.bindAndUpload(__context);
 
 		var boolIndex = 0;
 		var floatIndex = 0;
@@ -872,7 +878,10 @@ class Shader
 			}
 			else if (i < boolCount + floatCount)
 			{
-				floatRef = shaderBuffer.paramRefs_Float[floatIndex];
+				floatRef = shaderBuffer.paramRefs_Float[floatIndex++];
+				#if novaflare_threaded_projection_matrix
+				if (floatRef == __activeProjectionMatrix) continue;
+				#end
 
 				for (j in 0...shaderBuffer.overrideFloatCount)
 				{
@@ -893,7 +902,6 @@ class Shader
 					floatRef.__updateGLFromBuffer(__context, paramData, shaderBuffer.paramPositions[i], shaderBuffer.paramLengths[i], bufferOffset);
 				}
 
-				floatIndex++;
 			}
 			else
 			{

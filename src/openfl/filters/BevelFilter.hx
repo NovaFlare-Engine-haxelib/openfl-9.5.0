@@ -177,18 +177,21 @@ import lime._internal.graphics.ImageDataUtil;
 			if (pass < __horizontalPasses)
 			{
 				var scale = Math.pow(0.5, pass >> 1);
-				shader.uRadius.value[0] = blurX * scale;
+				shader.uRadius.value[0] = blurX * scale #if (cpp && lime) * renderer.__filterRenderScale #end;
 				shader.uRadius.value[1] = 0;
 			}
 			else
 			{
 				var scale = Math.pow(0.5, (pass - __horizontalPasses) >> 1);
 				shader.uRadius.value[0] = 0;
-				shader.uRadius.value[1] = blurY * scale;
+				shader.uRadius.value[1] = blurY * scale #if (cpp && lime) * renderer.__filterRenderScale #end;
 			}
 			return shader;
 		}
 
+		#if (cpp && lime)
+		__updateTransform(renderer.__filterRenderScale);
+		#end
 		__bevelShader.sourceBitmap.input = sourceBitmapData;
 		#end
 
@@ -415,11 +418,11 @@ import lime._internal.graphics.ImageDataUtil;
 		return value;
 	}
 
-	@:noCompletion private function __updateTransform():Void
+	@:noCompletion private function __updateTransform(renderScale:Float = 1):Void
 	{
 		var rad:Float = __angle * Math.PI / 180;
-		__bevelShader.uTransformX.value[0] = (__distance * Math.cos(rad));
-		__bevelShader.uTransformY.value[0] = (__distance * Math.sin(rad));
+		__bevelShader.uTransformX.value[0] = (__distance * Math.cos(rad) * renderScale);
+		__bevelShader.uTransformY.value[0] = (__distance * Math.sin(rad) * renderScale);
 	}
 
 	@:noCompletion private function __updateColors():Void

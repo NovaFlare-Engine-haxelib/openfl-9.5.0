@@ -408,6 +408,30 @@ import js.html.CanvasRenderingContext2D;
 		}
 	}
 
+	#if novaflare_compact_quad_shader_attributes
+	@:noCompletion public function __beginCompactQuadShaderFill(shader:GraphicsShader, alphas:Array<Float>, colorMultipliers:Array<Float>,
+			colorOffsets:Array<Float>):Bool
+	{
+		#if (cpp && lime && lime_cffi && !disable_cffi && !optional_cffi && !lime_webgl && !macro && (lime_opengl || lime_opengles))
+		final stage = __owner == null ? null : __owner.stage;
+		if (shader == null || alphas == null || stage == null || stage.context3D == null) return false;
+
+		final shaderBuffer = __shaderBufferPool.get();
+		__usedShaderBuffers.push(shaderBuffer);
+		if (!shaderBuffer.update(shader, alphas, colorMultipliers, colorOffsets))
+		{
+			if (__usedShaderBuffers.remove(shaderBuffer)) __shaderBufferPool.release(shaderBuffer);
+			return false;
+		}
+		__commands.beginShaderFill(shaderBuffer);
+		return true;
+		#else
+		return false;
+		#end
+	}
+	#end
+
+
 	/**
 		Clears the graphics that were drawn to this Graphics object, and resets
 		fill and line style settings.

@@ -992,6 +992,17 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	@:noCompletion private var __deltaTime:Float;
 	@:noCompletion private var __dirty:Bool;
 	@:noCompletion private var __displayMatrix:Matrix;
+
+	#if (cpp && lime)
+	private var __renderBoundWidth:Int = 0;
+	private var __renderBoundHeight:Int = 0;
+	private var __traceRenderResolution:Bool = false;
+	private var __configuredDrawableWidth:Int = 0;
+	private var __configuredDrawableHeight:Int = 0;
+	#end
+	#if (windows && cpp && lime && novaflare_render_snapshot)
+	private var __novaRenderSnapshot:Void->Void;
+	#end
 	@:noCompletion private var __displayRect:Rectangle;
 	@:noCompletion private var __displayState:StageDisplayState;
 	@:noCompletion private var __dragBounds:Rectangle;
@@ -1387,6 +1398,10 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	@:noCompletion private function __createRenderer():Void
 	{
 		#if lime
+		#if cpp
+		__configuredDrawableWidth = 0;
+		__configuredDrawableHeight = 0;
+		#end
 		var windowWidth = Std.int(window.width * window.scale);
 		var windowHeight = Std.int(window.height * window.scale);
 
@@ -2325,8 +2340,28 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		#end
 	}
 
+	#if (cpp && lime)
+	private inline function __syncScaledDrawableSize():Void
+	{
+		if (context3D != null && __renderBoundWidth > 0 && __renderBoundHeight > 0)
+		{
+			var windowWidth = Std.int(window.width * window.scale);
+			var windowHeight = Std.int(window.height * window.scale);
+			// A native resize can update Window before its SDL event reaches the stage.
+			if (windowWidth > 0 && windowHeight > 0
+				&& (windowWidth != __configuredDrawableWidth || windowHeight != __configuredDrawableHeight))
+			{
+				__resizeFromWindow();
+			}
+		}
+	}
+	#end
+
 	@:noCompletion private function __render(context:RenderContext):Bool
 	{
+		#if (cpp && lime)
+		__syncScaledDrawableSize();
+		#end
 		#if sys
 		var __novaStarted = __novaPerfTrace ? haxe.Timer.stamp() : 0.0;
 		var __novaAfterUpdate = 0.0;
@@ -2355,6 +2390,10 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 			#if openfl_pool_events
 			Event.__pool.release(event);
 			#end
+			#if (cpp && lime)
+			// A render listener can resize the window after the initial size check.
+			__syncScaledDrawableSize();
+			#end
 		}
 
 		#if hxtelemetry
@@ -2374,6 +2413,13 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		#if lime
 		if (__renderer != null)
 		{
+			#if (cpp && lime)
+			var renderContext3D = context3D;
+			var scaledTarget = renderContext3D != null
+				&& renderContext3D.__beginRenderResolution(__renderBoundWidth, __renderBoundHeight, __traceRenderResolution);
+			try
+			{
+			#end
 			if (context3D != null)
 			{
 				for (stage3D in stage3Ds)
@@ -2403,6 +2449,10 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 					__renderer.__clear();
 				}
 
+				#if (cpp && lime)
+				var stageTarget = scaledTarget ? renderContext3D.__stageRenderTarget : null;
+				__renderer.__stageFilterScale = stageTarget == null ? 1.0 : Math.min(stageTarget.scaleX, stageTarget.scaleY);
+				#end
 				__renderer.__render(this);
 				#if sys
 				if (__novaPerfTrace) __novaAfterRenderer = haxe.Timer.stamp();
@@ -2426,12 +2476,24 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 						__renderer.__clear();
 					}
 
+					#if (cpp && lime)
+					if (scaledTarget) renderContext3D.__stageRenderTarget.finish(true);
+					#end
 					context3D.__present = false;
 					context3D.__cleared = false;
 				}
 			}
 
 			__renderer.__cleared = false;
+			#if (cpp && lime)
+			}
+			catch (error:haxe.Exception)
+			{
+				if (scaledTarget) renderContext3D.__stageRenderTarget.finish(false);
+				throw error;
+			}
+			if (scaledTarget) renderContext3D.__stageRenderTarget.finish(false);
+			#end
 		}
 		#end
 
@@ -2546,6 +2608,14 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		{
 			window.onRender.cancel();
 		}
+		#if (windows && cpp && lime && novaflare_render_snapshot)
+		else if (__novaRenderSnapshot != null)
+		{
+			var snapshot = __novaRenderSnapshot;
+			__novaRenderSnapshot = null;
+			snapshot();
+		}
+		#end
 
 		__rendering = false;
 	}
@@ -2880,16 +2950,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 	{
 		if (this.window == null || this.window != window) return;
 
-		if (__desiredLogicalWidth > 0 && __desiredLogicalHeight > 0)
-		{
-			#if mobile
-			calcScreen(this.window.width * this.window.scale, this.window.height * this.window.scale, __desiredLogicalWidth, __desiredLogicalHeight);
-			#else
-			calcScreen(this.window.width, this.window.height, __desiredLogicalWidth, __desiredLogicalHeight);
-			#end
-		}
-
-		__resize();
+		__resizeFromWindow();
 
 		#if android
 		// workaround for newer behavior
@@ -2918,6 +2979,20 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 			__displayState = NORMAL;
 			__dispatchEvent(new FullScreenEvent(FullScreenEvent.FULL_SCREEN, false, false, false, true));
 		}
+	}
+
+	private function __resizeFromWindow():Void
+	{
+		if (__desiredLogicalWidth > 0 && __desiredLogicalHeight > 0)
+		{
+			#if mobile
+			calcScreen(window.width * window.scale, window.height * window.scale, __desiredLogicalWidth, __desiredLogicalHeight);
+			#else
+			calcScreen(window.width, window.height, __desiredLogicalWidth, __desiredLogicalHeight);
+			#end
+		}
+
+		__resize();
 	}
 	#end
 
@@ -3720,6 +3795,10 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 
 		var windowWidth = Std.int(window.width * window.scale);
 		var windowHeight = Std.int(window.height * window.scale);
+		#if (cpp && lime)
+		__configuredDrawableWidth = windowWidth;
+		__configuredDrawableHeight = windowHeight;
+		#end
 
 		__displayMatrix.identity();
 
@@ -3895,6 +3974,20 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 			__logicalHeight = Std.int(Math.min(stageHeight, wantHeight));
 			__logicalWidth = Std.int(__logicalHeight * windowRatio);
 		}
+		#end
+	}
+
+	/**
+		Sets a pixel bound for the stage's OpenGL render target. Zero selects the drawable.
+		The window and stage coordinate system do not depend on this bound.
+	**/
+	public function setRenderResolution(width:Int, height:Int, trace:Bool = false):Void
+	{
+		#if (cpp && lime)
+		__renderBoundWidth = width;
+		__renderBoundHeight = height;
+		__traceRenderResolution = trace;
+		__renderDirty = true;
 		#end
 	}
 

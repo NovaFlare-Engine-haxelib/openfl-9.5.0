@@ -6,6 +6,9 @@ import openfl.utils._internal.ArrayBufferView;
 import openfl.utils._internal.Float32Array;
 import openfl.utils.ByteArray;
 import openfl.Vector;
+#if (cpp && lime && lime_cffi && !disable_cffi && !macro && (lime_opengl || lime_opengles))
+import lime._internal.backend.native.NativeCFFI;
+#end
 
 /**
 	The VertexBuffer3D class represents a set of vertex data uploaded to a rendering context.
@@ -129,8 +132,24 @@ class VertexBuffer3D
 		var gl = __context.gl;
 
 		__context.__bindGLArrayBuffer(__id);
+		#if (lime && sys && lime_cffi && (lime_opengl || lime_opengles) && !doc_gen)
+		if (byteLength >= 0 && byteLength < data.byteLength)
+		{
+			__context.__context.gles2.bufferData(gl.ARRAY_BUFFER, byteLength, data, __usage);
+			return;
+		}
+		#end
 		gl.bufferData(gl.ARRAY_BUFFER, data, __usage);
 	}
+
+	#if (cpp && lime && lime_cffi && !disable_cffi && !macro && (lime_opengl || lime_opengles))
+	@:allow(openfl.display._internal.Context3DBuffer)
+	private function __tryUploadQuadBatches(batches:Dynamic, quadCount:Int):Bool
+	{
+		__context.__bindGLArrayBuffer(__id);
+		return @:privateAccess NativeCFFI.tryQueueQuadBuffer(batches, quadCount, __usage);
+	}
+	#end
 
 	/**
 		Uploads the data for a set of points to the rendering context from a vector array.

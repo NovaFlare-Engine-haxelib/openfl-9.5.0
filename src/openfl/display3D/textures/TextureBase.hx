@@ -218,7 +218,13 @@ class TextureBase extends EventDispatcher
 
 				gl.bindRenderbuffer(gl.RENDERBUFFER, __glDepthRenderbuffer);
 				gl.renderbufferStorage(gl.RENDERBUFFER, Context3D.__glDepthStencil, __width, __height);
+				#if (android && nova_stage_render_target)
+				// OpenGL ES 2 only accepts separate depth and stencil attachment points.
+				gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, __glDepthRenderbuffer);
+				gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.STENCIL_ATTACHMENT, gl.RENDERBUFFER, __glDepthRenderbuffer);
+				#else
 				gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, __glDepthRenderbuffer);
+				#end
 			}
 			else
 			{
@@ -425,7 +431,12 @@ class TextureBase extends EventDispatcher
 			gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, gl.UNSIGNED_BYTE, image.src);
 		}
 		#else
-		gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, image.buffer.width, image.buffer.height, 0, format, gl.UNSIGNED_BYTE, image.data);
+		#if (cpp && lime_cffi && !disable_cffi)
+		if (!lime._internal.backend.native.NativeCFFI.tryQueuePackedTextureImage2D(image, internalFormat, format))
+		#end
+		{
+			gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, image.buffer.width, image.buffer.height, 0, format, gl.UNSIGNED_BYTE, image.data);
+		}
 		#end
 
 		__context.__bindGLTexture2D(null);
